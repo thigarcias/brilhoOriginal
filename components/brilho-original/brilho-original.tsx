@@ -475,9 +475,9 @@ function QuestionStep({
 }
 
 export default function BrilhoOriginal({
-  badge = "Brilho Original",
+  badge = "Estrategista de Marca",
   title1 = "Onboarding",
-  title2 = "Brilho Original",
+  title2 = "BrandPlot",
 }: {
   badge?: string
   title1?: string
@@ -658,7 +658,7 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
                   <span
                     className={cn(
                       "bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-[#c8b79e] to-amber-200 overflow-visible pb-2 px-4",
-                      pacifico.className,
+                      "font-bethany"
                     )}
                   >
                     {title2}
@@ -668,8 +668,7 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
 
               <motion.div custom={2} variants={fadeUpVariants} initial="hidden" animate="visible">
                 <p className="text-base sm:text-lg md:text-xl text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
-                  Impulsione sua marca e crie insights utilizando a potência da inteligência artificial e a expertise da
-                  Brilho Original.
+                  Impulsione sua marca e crie insights utilizando a potência da inteligência artificial e a expertise do Vicgario Brandstudio.
                 </p>
               </motion.div>
 
