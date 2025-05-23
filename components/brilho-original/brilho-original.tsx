@@ -483,7 +483,7 @@ export default function BrilhoOriginal({
   title1?: string
   title2?: string
 }) {
-  const [currentStep, setCurrentStep] = useState(0) // 0 = hero, 1-9 = questions, 10 = loading, 11 = results
+  const [currentStep, setCurrentStep] = useState(0) // 0 = hero, 1-10 = questions, 11 = loading, 12 = results
   const [answers, setAnswers] = useState<string[]>(Array(questions.length).fill(""))
   const [isLoading, setIsLoading] = useState(false)
   const [analysis, setAnalysis] = useState("")
@@ -543,60 +543,65 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
 
   const handleNext = async () => {
     if (currentStep < questions.length) {
+      // Se ainda há perguntas (steps 1 a 10),
+      // avança para a próxima pergunta.
       setCurrentStep(currentStep + 1)
-    } else {
-      // Last question completed, send to API
-      setIsLoading(true)
-      setCurrentStep(10) // Show loading state
-      setError("")
+      return // Importante sair aqui para não chamar a API antes da última pergunta
+    }
 
-      try {
-        console.log("Sending request to API with answers:", answers)
+    // Se chegou aqui, é porque currentStep === questions.length (step 10 - Contato)
+    // e o usuário clicou em Próximo/Finalizar nesse passo.
+    // Agora sim, chama a API e vai para a tela de loading (step 11).
+    setIsLoading(true)
+    setCurrentStep(11) // Show loading state
+    setError("")
 
-        // Make the API call
-        const response = await fetch("/api/analyze", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ answers }),
-        })
+    try {
+      console.log("Sending request to API with answers:", answers)
 
-        console.log("API response status:", response.status)
+      // Make the API call
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ answers }),
+      })
 
-        if (!response.ok) {
-          // Try to get error details from response
-          let errorMessage = `API responded with status: ${response.status}`
-          try {
-            const errorData = await response.json()
-            if (errorData.error) {
-              errorMessage = errorData.error
-            }
-          } catch (e) {
-            // If we can't parse the error response, use the status
+      console.log("API response status:", response.status)
+
+      if (!response.ok) {
+        // Try to get error details from response
+        let errorMessage = `API responded with status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          if (errorData.error) {
+            errorMessage = errorData.error
           }
-          throw new Error(errorMessage)
+        } catch (e) {
+          // If we can't parse the error response, use the status
         }
-
-        const data = await response.json()
-        console.log("API response data:", data)
-
-        if (!data.analysis) {
-          throw new Error("No analysis received from API")
-        }
-
-        setAnalysis(data.analysis)
-        setCurrentStep(11) // Show results
-        setIsLoading(false)
-      } catch (error: any) {
-        console.error("Error analyzing:", error)
-        setError(`Erro: ${error.message}. Usando análise de exemplo como fallback.`)
-
-        // Use sample data as fallback
-        setAnalysis(getSampleAnalysis())
-        setCurrentStep(11)
-        setIsLoading(false)
+        throw new Error(errorMessage)
       }
+
+      const data = await response.json()
+      console.log("API response data:", data)
+
+      if (!data.analysis) {
+        throw new Error("No analysis received from API")
+      }
+
+      setAnalysis(data.analysis)
+      setCurrentStep(12) // Show results
+      setIsLoading(false)
+    } catch (error: any) {
+      console.error("Error analyzing:", error)
+      setError(`Erro: ${error.message}. Usando análise de exemplo como fallback.`) // Mensagem de erro mais amigável
+
+      // Use sample data as fallback
+      setAnalysis(getSampleAnalysis())
+      setCurrentStep(12) // Show results even on error with fallback
+      setIsLoading(false)
     }
   }
 
@@ -612,59 +617,11 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
     setAnswers(newAnswers)
   }
 
-  return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814]">
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.05] via-transparent to-amber-700/[0.05] blur-3xl" />
-
-      <div className="absolute inset-0 overflow-hidden">
-        <ElegantShape
-          delay={0.3}
-          width={600}
-          height={140}
-          rotate={12}
-          gradient="from-amber-500/[0.15]"
-          className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
-        />
-
-        <ElegantShape
-          delay={0.5}
-          width={500}
-          height={120}
-          rotate={-15}
-          gradient="from-amber-700/[0.15]"
-          className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
-        />
-
-        <ElegantShape
-          delay={0.4}
-          width={300}
-          height={80}
-          rotate={-8}
-          gradient="from-amber-600/[0.15]"
-          className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
-        />
-
-        <ElegantShape
-          delay={0.6}
-          width={200}
-          height={60}
-          rotate={20}
-          gradient="from-amber-500/[0.15]"
-          className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
-        />
-
-        <ElegantShape
-          delay={0.7}
-          width={150}
-          height={40}
-          rotate={-25}
-          gradient="from-amber-400/[0.15]"
-          className="left-[20%] md:left-[25%] top-[5%] md:top-[10%]"
-        />
-      </div>
-
-      <AnimatePresence mode="wait">
-        {currentStep === 0 ? (
+  // Determine which step to render
+  const renderStep = () => {
+    switch (currentStep) {
+      case 0:
+        return (
           <motion.div
             key="hero"
             variants={slideVariants}
@@ -729,7 +686,9 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
               </motion.div>
             </div>
           </motion.div>
-        ) : currentStep === 10 ? (
+        )
+      case 11:
+        return (
           <motion.div
             key="loading"
             variants={slideVariants}
@@ -740,7 +699,9 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
           >
             <LoadingState companyName={companyName} />
           </motion.div>
-        ) : currentStep === 11 ? (
+        )
+      case 12:
+        return (
           <motion.div
             key="results"
             variants={slideVariants}
@@ -756,7 +717,9 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
               </div>
             )}
           </motion.div>
-        ) : (
+        )
+      default: // Steps 1 through 10 (questions)
+        return (
           <motion.div
             key={`question-${currentStep}`}
             variants={slideVariants}
@@ -768,14 +731,70 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
             <QuestionStep
               questionNumber={currentStep}
               question={questions[currentStep - 1]}
-              answer={answers[currentStep - 1]}
+              answer={answers[currentStep - 1]} // answers array is 0-indexed
               setAnswer={(value) => updateAnswer(currentStep - 1, value)}
               onNext={handleNext}
               onBack={handleBack}
               isLast={currentStep === questions.length}
             />
           </motion.div>
-        )}
+        )
+    }
+  }
+
+  return (
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814]">
+      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.05] via-transparent to-amber-700/[0.05] blur-3xl" />
+
+      <div className="absolute inset-0 overflow-hidden">
+        <ElegantShape
+          delay={0.3}
+          width={600}
+          height={140}
+          rotate={12}
+          gradient="from-amber-500/[0.15]"
+          className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
+        />
+
+        <ElegantShape
+          delay={0.5}
+          width={500}
+          height={120}
+          rotate={-15}
+          gradient="from-amber-700/[0.15]"
+          className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
+        />
+
+        <ElegantShape
+          delay={0.4}
+          width={300}
+          height={80}
+          rotate={-8}
+          gradient="from-amber-600/[0.15]"
+          className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
+        />
+
+        <ElegantShape
+          delay={0.6}
+          width={200}
+          height={60}
+          rotate={20}
+          gradient="from-amber-500/[0.15]"
+          className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
+        />
+
+        <ElegantShape
+          delay={0.7}
+          width={150}
+          height={40}
+          rotate={-25}
+          gradient="from-amber-400/[0.15]"
+          className="left-[20%] md:left-[25%] top-[5%] md:top-[10%]"
+        />
+      </div>
+
+      <AnimatePresence mode="wait">
+        {renderStep()}
       </AnimatePresence>
     </div>
   )

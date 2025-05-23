@@ -54,17 +54,9 @@ export async function POST(request: Request) {
 
     // Monta o objeto para o banco
     let contact = { phone: null, email: null }
-    let contatoString = ''
     try {
       if (answers[9]) {
         contact = JSON.parse(answers[9])
-        if (contact.phone && contact.email) {
-          contatoString = `${contact.phone} ${contact.email}`
-        } else if (contact.phone) {
-          contatoString = contact.phone
-        } else if (contact.email) {
-          contatoString = contact.email
-        }
       }
     } catch {}
     const dbData = {
@@ -77,7 +69,8 @@ export async function POST(request: Request) {
       resposta_6: answers[6] || null,
       resposta_7: answers[7] || null,
       resposta_8: answers[8] || null,
-      contato: contatoString || null,
+      contato_telefone: contact.phone || null,
+      contato_email: contact.email || null,
       botao_recomecar: null,
       botao_wpp: null,
     }
