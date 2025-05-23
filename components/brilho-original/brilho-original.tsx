@@ -25,6 +25,7 @@ const questions = [
   "Como você gostaria que sua marca fosse percebida?",
   'Em uma frase: "Minha marca existe para que as pessoas possam finalmente __________."',
   "Envie um print da página inicial do Instagram da sua marca (com bio, feed e destaques visíveis) para que possamos criar uma nova bio ao final do diagnóstico.",
+  "Informe um celular para contato (WhatsApp) ou um e-mail. Pelo menos um dos dois é obrigatório.",
 ]
 
 function ElegantShape({
@@ -318,7 +319,39 @@ function QuestionStep({
   isLast: boolean
 }) {
   const isFileUpload = questionNumber === 9
+  const isContactStep = questionNumber === 10
   const isCompanyName = questionNumber === 1
+
+  // Para o passo de contato, separar resposta em dois campos
+  const [contact, setContact] = useState<{ phone: string; email: string }>(() => {
+    if (isContactStep && answer) {
+      try {
+        return JSON.parse(answer)
+      } catch {
+        return { phone: '', email: '' }
+      }
+    }
+    return { phone: '', email: '' }
+  })
+
+  // Validação simples de e-mail e celular
+  function isValidEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+  function isValidPhone(phone: string) {
+    return /^(\+?\d{10,15})$/.test(phone.replace(/\D/g, ''))
+  }
+  const isContactValid = isContactStep ? (
+    (contact.phone && isValidPhone(contact.phone)) || (contact.email && isValidEmail(contact.email))
+  ) : true
+
+  // Atualiza o answer do step pai
+  useEffect(() => {
+    if (isContactStep) {
+      setAnswer(JSON.stringify(contact))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contact])
 
   return (
     <motion.div
@@ -383,6 +416,24 @@ function QuestionStep({
                 <p className="text-white/40 text-sm">PNG, JPG até 10MB</p>
               </div>
             </div>
+          ) : isContactStep ? (
+            <div className="flex flex-col gap-4 items-center">
+              <input
+                type="tel"
+                placeholder="Celular (WhatsApp)"
+                value={contact.phone}
+                onChange={e => setContact(c => ({ ...c, phone: e.target.value }))}
+                className="w-full max-w-md px-6 py-4 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#c8b79e]/50 focus:bg-white/[0.08] transition-all duration-300 backdrop-blur-sm"
+              />
+              <input
+                type="email"
+                placeholder="E-mail"
+                value={contact.email}
+                onChange={e => setContact(c => ({ ...c, email: e.target.value }))}
+                className="w-full max-w-md px-6 py-4 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-[#c8b79e]/50 focus:bg-white/[0.08] transition-all duration-300 backdrop-blur-sm"
+              />
+              <p className="text-white/40 text-sm mt-2">Preencha pelo menos um dos campos acima.</p>
+            </div>
           ) : (
             <textarea
               value={answer}
@@ -411,7 +462,7 @@ function QuestionStep({
 
           <button
             onClick={onNext}
-            disabled={!answer.trim()}
+            disabled={isContactStep ? !isContactValid : !answer.trim()}
             className="group relative px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 min-w-[160px] shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             <span className="relative z-10">{isLast ? "Finalizar" : "Próximo"}</span>

@@ -53,6 +53,20 @@ export async function POST(request: Request) {
     const supabase = createClient(supabaseUrl, supabaseKey as string)
 
     // Monta o objeto para o banco
+    let contact = { phone: null, email: null }
+    let contatoString = ''
+    try {
+      if (answers[9]) {
+        contact = JSON.parse(answers[9])
+        if (contact.phone && contact.email) {
+          contatoString = `${contact.phone} ${contact.email}`
+        } else if (contact.phone) {
+          contatoString = contact.phone
+        } else if (contact.email) {
+          contatoString = contact.email
+        }
+      }
+    } catch {}
     const dbData = {
       nome_empresa: answers[0] || null,
       resposta_1: answers[1] || null,
@@ -63,6 +77,7 @@ export async function POST(request: Request) {
       resposta_6: answers[6] || null,
       resposta_7: answers[7] || null,
       resposta_8: answers[8] || null,
+      contato: contatoString || null,
       botao_recomecar: null,
       botao_wpp: null,
     }
@@ -95,6 +110,7 @@ export async function POST(request: Request) {
 7. Como você gostaria que sua marca fosse percebida? ${answers[6] || "Não informado"}
 8. Em uma frase: \"Minha marca existe para que as pessoas possam finalmente __________.\" ${answers[7] || "Não informado"}
 9. Instagram screenshot foi fornecido: ${answers[8] ? "Sim" : "Não"}
+10. Contato informado: Celular: ${contact.phone || "Não informado"}, E-mail: ${contact.email || "Não informado"}
 
 Por favor, forneça uma análise detalhada da marca em português com as seguintes seções:
 
