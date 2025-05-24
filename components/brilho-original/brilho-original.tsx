@@ -632,23 +632,27 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
             className="relative z-10 container mx-auto px-4 md:px-6 min-h-screen flex items-center justify-center"
           >
             <div className="max-w-3xl mx-auto text-center">
-              <motion.div
-                custom={0}
-                variants={fadeUpVariants}
-                initial="hidden"
-                animate="visible"
-                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-8 md:mb-12"
-              >
-                <Image
-                  src="/images/brilho-original-logo.png"
-                  alt="Brilho Original"
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-                <span className="text-sm text-white/60 tracking-wide">{badge}</span>
-              </motion.div>
+              <div className="flex items-center justify-center gap-2">
+                <motion.div className="inline-flex items-center gap-3 px-4 py-1 rounded-full bg-white border border-white/[0.08] mb-8 md:mb-12">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[#534A40] tracking-wide">Beta</span>
+                  </div>
+                </motion.div>
 
+                <motion.div className="inline-flex items-center gap-3 px-4 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-8 md:mb-12">
+                  <div className="flex items-center gap-2">
+                    <Image
+                      src="/images/brilho-original-logo.png"
+                      alt="Brilho Original"
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                    <span className="text-sm text-white/60 tracking-wide">{badge}</span>
+                  </div>
+                </motion.div>
+
+              </div>
               <motion.div custom={1} variants={fadeUpVariants} initial="hidden" animate="visible">
                 <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold mb-6 md:mb-8 tracking-tight px-2 leading-relaxed overflow-visible">
                   <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-white/80">
@@ -676,7 +680,7 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
                 <div className="flex justify-center items-center px-4">
                   <button
                     onClick={handleStart}
-                    className="group relative px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 w-full max-w-md shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
+                    className="group relative px-8 py-4 bg-gradient-to-r from-[#82772E] to-[#E5CB63] hover:from-[#82772E] hover:to-[#E5CB63] text-white font-semibold rounded-xl transition-all duration-300 w-full max-w-md shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
                   >
                     <span className="relative z-10 text-lg">Começar</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
