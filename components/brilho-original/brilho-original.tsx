@@ -15,6 +15,7 @@ const pacifico = Pacifico({
   variable: "--font-pacifico",
 })
 
+
 const questions = [
   "Qual o nome da sua empresa?",
   "O que te motivou a criar essa marca?",
