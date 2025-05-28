@@ -118,31 +118,31 @@ export default function VozRealtime() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#1a1814] text-white p-4">
-      <h1 className="text-3xl font-bold mb-4">Assistente de Voz da BrandPlot</h1>
-      <p className="mb-8 text-white/70 max-w-xl text-center">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 text-center">Assistente de Voz da BrandPlot</h1>
+      <p className="mb-6 sm:mb-8 text-white/70 max-w-xs sm:max-w-xl text-center text-base sm:text-lg">
         Converse em tempo real com nosso agente de branding usando a sua voz, para começar clique no botão de microfone e fale Olá!
       </p>
-      <div className="flex flex-col items-center gap-4 mb-8">
+      <div className="flex flex-col items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
         {!isSessionActive ? (
           <button
             onClick={startSession}
             disabled={isLoading}
-            className="w-24 h-24 rounded-full flex items-center justify-center bg-[#c8b79e] hover:bg-[#d0c0a8] transition-all text-white text-2xl"
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center bg-[#c8b79e] hover:bg-[#d0c0a8] transition-all text-white text-xl sm:text-2xl"
           >
-            {isLoading ? <Loader2 className="animate-spin w-12 h-12" /> : <Mic className="w-12 h-12" />}
+            {isLoading ? <Loader2 className="animate-spin w-10 h-10 sm:w-12 sm:h-12" /> : <Mic className="w-10 h-10 sm:w-12 sm:h-12" />}
           </button>
         ) : (
           <button
             onClick={stopSession}
-            className="w-24 h-24 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-700 transition-all text-white text-2xl"
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-700 transition-all text-white text-xl sm:text-2xl"
           >
-            <MicOff className="w-12 h-12" />
+            <MicOff className="w-10 h-10 sm:w-12 sm:h-12" />
           </button>
         )}
         <audio ref={audioElement} hidden />
       </div>
-      {error && <div className="bg-red-500/10 text-red-400 p-4 rounded-xl mb-4">{error}</div>}
-      <a href="/" className="text-white/60 hover:text-white underline">Voltar para o início</a>
+      {error && <div className="bg-red-500/10 text-red-400 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-sm sm:text-base">{error}</div>}
+      <a href="/" className="text-white/60 hover:text-white underline text-sm sm:text-base">Voltar para o início</a>
     </div>
   )
 }
