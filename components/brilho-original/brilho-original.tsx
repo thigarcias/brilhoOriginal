@@ -676,6 +676,7 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
                 </p>
               </motion.div>
 
+
               <motion.div custom={3} variants={fadeUpVariants} initial="hidden" animate="visible">
                 <div className="flex justify-center items-center px-4">
                   <button
