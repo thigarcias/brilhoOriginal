@@ -117,26 +117,36 @@ export default function VozRealtime() {
   }, [])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#1a1814] text-white p-4">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 text-center">Assistente de Voz da BrandPlot</h1>
-      <p className="mb-6 sm:mb-8 text-white/70 max-w-xs sm:max-w-xl text-center text-base sm:text-lg">
-        Converse em tempo real com nosso agente de branding usando a sua voz, para começar clique no botão de microfone e fale Olá!
-      </p>
-      <div className="flex flex-col items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#1a1814] text-white p-2 sm:p-4">
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 md:mb-4 text-center drop-shadow-lg tracking-tight">
+        Assistente de Voz da BrandPlot
+      </h1>
+      <div className="mb-4 sm:mb-6 md:mb-8 max-w-xs sm:max-w-md md:max-w-xl w-full flex flex-col items-center">
+        <div className="w-full bg-gradient-to-r from-[#23201a]/60 to-[#2c261b]/60 rounded-xl p-3 sm:p-4 md:p-6 mb-2 shadow-lg border border-[#c8b79e]/10">
+          <p className="text-sm sm:text-base md:text-lg text-[#fde68a] font-semibold text-center">
+            Impulsione sua marca e crie insights utilizando a potência da inteligência artificial e a expertise do Vicgario Brandstudio.
+          </p>
+        </div>
+        <p className="text-white/80 text-xs sm:text-sm md:text-base text-center italic">
+          Converse em tempo real com nosso agente de branding usando a sua voz.<br />
+          <span className="not-italic font-medium text-white/90">Para começar, clique no botão de microfone e fale "Olá!"</span>
+        </p>
+      </div>
+      <div className="flex flex-col items-center gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8">
         {!isSessionActive ? (
           <button
             onClick={startSession}
             disabled={isLoading}
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center bg-[#c8b79e] hover:bg-[#d0c0a8] transition-all text-white text-xl sm:text-2xl"
+            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center bg-[#c8b79e] hover:bg-[#d0c0a8] transition-all text-white text-lg sm:text-xl md:text-2xl shadow-xl hover:shadow-2xl focus:ring-4 focus:ring-[#c8b79e]/40 outline-none duration-200"
           >
-            {isLoading ? <Loader2 className="animate-spin w-10 h-10 sm:w-12 sm:h-12" /> : <Mic className="w-10 h-10 sm:w-12 sm:h-12" />}
+            {isLoading ? <Loader2 className="animate-spin w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" /> : <Mic className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />}
           </button>
         ) : (
           <button
             onClick={stopSession}
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-700 transition-all text-white text-xl sm:text-2xl"
+            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-700 transition-all text-white text-lg sm:text-xl md:text-2xl shadow-xl hover:shadow-2xl focus:ring-4 focus:ring-red-400/40 outline-none duration-200"
           >
-            <MicOff className="w-10 h-10 sm:w-12 sm:h-12" />
+            <MicOff className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />
           </button>
         )}
         <audio ref={audioElement} hidden />
