@@ -7,6 +7,8 @@ export default function VozRealtime() {
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [voiceEnabled, setVoiceEnabled] = useState(true)
+  const [checkingVoice, setCheckingVoice] = useState(true)
   const peerConnection = useRef<RTCPeerConnection | null>(null)
   const dataChannel = useRef<RTCDataChannel | null>(null)
   const audioElement = useRef<HTMLAudioElement | null>(null)
@@ -53,7 +55,7 @@ export default function VozRealtime() {
 
       // 7. Envia offer para o endpoint da OpenAI
       const baseUrl = "https://api.openai.com/v1/realtime"
-      const model = "gpt-4o-realtime-preview-2024-12-17"
+      const model = "gpt-4o-mini-realtime-preview"
       const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
         method: "POST",
         body: offer.sdp,
@@ -111,6 +113,20 @@ export default function VozRealtime() {
   }
 
   useEffect(() => {
+    // Checa status do modo de voz ao carregar a página
+    fetch("/api/voice-mode/status")
+      .then(res => res.json())
+      .then(data => {
+        setVoiceEnabled(data.enabled)
+        setCheckingVoice(false)
+      })
+      .catch(() => {
+        setVoiceEnabled(false)
+        setCheckingVoice(false)
+      })
+  }, [])
+
+  useEffect(() => {
     return () => {
       stopSession()
     }
@@ -133,7 +149,13 @@ export default function VozRealtime() {
         </p>
       </div>
       <div className="flex flex-col items-center gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8">
-        {!isSessionActive ? (
+        {checkingVoice ? (
+          <div className="text-white/60 text-sm mb-2">Verificando disponibilidade do modo de voz...</div>
+        ) : !voiceEnabled ? (
+          <div className="bg-yellow-700/20 text-yellow-300 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-sm sm:text-base text-center max-w-xs">
+            O modo de voz está desativado no momento. Tente novamente mais tarde.
+          </div>
+        ) : !isSessionActive ? (
           <button
             onClick={startSession}
             disabled={isLoading}
