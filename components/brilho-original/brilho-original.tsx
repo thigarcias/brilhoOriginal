@@ -152,7 +152,15 @@ function LoadingState({ companyName = "sua marca" }: { companyName?: string }) {
   )
 }
 
-function ResultsDisplay({ analysis, companyName = "Sua Marca" }: { analysis: string; companyName?: string }) {
+function ResultsDisplay({ 
+  analysis, 
+  companyName = "Sua Marca", 
+  contactData = "" 
+}: { 
+  analysis: string; 
+  companyName?: string;
+  contactData?: string;
+}) {
   const [score, setScore] = useState(0)
   const [markdownContent, setMarkdownContent] = useState("")
 
@@ -284,8 +292,7 @@ function ResultsDisplay({ analysis, companyName = "Sua Marca" }: { analysis: str
               <p className="text-2xl md:text-3xl font-extrabold text-white mb-3 drop-shadow-sm">
                 Pronto para <span className="text-[#fde68a]">transformar sua marca</span> e <span className="text-[#fde68a]">atrair clientes que pagam mais?</span>
               </p>
-              <p className="text-lg text-white/90 mb-8 font-medium">Dê o próximo passo e fale com um especialista para impulsionar seu negócio.</p>
-              <a
+              <p className="text-lg text-white/90 mb-8 font-medium">Dê o próximo passo e fale com um especialista para impulsionar seu negócio.</p>              <a
                 href="https://wa.me/5511974564367?text=Olá! Quero valorizar minha marca com a Brilho Original."
                 target="_blank"
                 rel="noopener noreferrer"
@@ -294,6 +301,20 @@ function ResultsDisplay({ analysis, companyName = "Sua Marca" }: { analysis: str
                 <MessageCircle className="w-6 h-6 text-white" />
                 Quero valorizar minha marca
               </a>
+                {/* Botão de Cadastro - Valorização da Marca */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <p className="text-white/70 text-sm mb-4 text-center">
+                  Crie sua conta e tenha acesso a mais ferramentas de marca
+                </p>                <a
+                  href={`/login?mode=register&company=${encodeURIComponent(companyName)}&contact=${encodeURIComponent(contactData || '')}`}
+                  className="group relative flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold text-base rounded-xl transition-all duration-300 shadow-lg hover:scale-105 border border-[#c8b79e]/30 focus:outline-none focus:ring-2 focus:ring-[#c8b79e]/50"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  Criar Conta Gratuita
+                </a>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -674,19 +695,21 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
               <motion.div custom={2} variants={fadeUpVariants} initial="hidden" animate="visible">
                 <p className="text-base sm:text-lg md:text-xl text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
                   Impulsione sua marca e crie insights utilizando a potência da inteligência artificial e a expertise do Vicgario Brandstudio.
-                </p>
-              </motion.div>
-
-
-              <motion.div custom={3} variants={fadeUpVariants} initial="hidden" animate="visible">
-                <div className="flex justify-center items-center px-4">
-                  <button
+                </p>              </motion.div>              <motion.div custom={3} variants={fadeUpVariants} initial="hidden" animate="visible">
+                <div className="flex flex-col justify-center items-center px-4 gap-4">                  <button
                     onClick={handleStart}
                     className="group relative px-8 py-4 bg-gradient-to-r from-[#82772E] to-[#E5CB63] hover:from-[#82772E] hover:to-[#E5CB63] text-white font-semibold rounded-xl transition-all duration-300 w-full max-w-md shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
                   >
                     <span className="relative z-10 text-lg">Começar</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                   </button>
+                  
+                  <a
+                    href="/login"
+                    className="mt-4 inline-flex items-center justify-center text-white/60 hover:text-white/80 transition-colors text-sm"
+                  >
+                    Já tem uma conta? Faça login
+                  </a>
                 </div>
               </motion.div>
             </div>
@@ -715,7 +738,7 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
             exit="exit"
             transition={{ duration: 0.8, ease: [0.25, 0.4, 0.25, 1] }}
           >
-            <ResultsDisplay analysis={analysis} companyName={companyName} />
+            <ResultsDisplay analysis={analysis} companyName={companyName} contactData={answers[9] || ""} />
             {error && (
               <div className="text-amber-300 text-center mt-4 max-w-xl mx-auto px-4">
                 <p className="text-sm">{error}</p>
@@ -742,13 +765,12 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
               onBack={handleBack}
               isLast={currentStep === questions.length}
             />
-          </motion.div>
-        )
+          </motion.div>        )
     }
   }
-
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814]">
+
       <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.05] via-transparent to-amber-700/[0.05] blur-3xl" />
 
       <div className="absolute inset-0 overflow-hidden">

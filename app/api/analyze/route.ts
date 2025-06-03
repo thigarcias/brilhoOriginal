@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       botao_recomecar: null,
       botao_wpp: null,
     }
-    const supabasePromise = supabase.from("company_responses").insert([dbData])
+    const supabasePromise = supabase.from("brandplot").insert([dbData])
 
     try {
       console.log("Making OpenAI API call...")
