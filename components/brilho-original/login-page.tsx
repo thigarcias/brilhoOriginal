@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Pacifico } from "next/font/google"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { BrandplotCache } from "@/lib/brandplot-cache"
 import { useState, useEffect } from "react"
 import { Eye, EyeOff, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -87,6 +88,8 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -120,13 +123,10 @@ export default function LoginPage() {
             phone: phone
           }))
         }
-      }
-
-      if (!company && !contact) {
+      }      if (!company && !contact) {
         try {
-          const stored = localStorage.getItem('brandplotDraft')
-          if (stored) {
-            const cached = JSON.parse(stored)
+          const cached = BrandplotCache.get()
+          if (cached) {
             const contactInfo = cached.contact
               ? JSON.parse(cached.contact)
               : {}
@@ -155,8 +155,7 @@ export default function LoginPage() {
     }),
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {    setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     })
@@ -164,16 +163,17 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+    
     if (isLogin) {
-      console.log("Login", formData)
+      handleLogin()
       return
     }
 
     async function register() {
       let cached: any = null
       try {
-        const stored = localStorage.getItem("brandplotDraft")
-        if (stored) cached = JSON.parse(stored)
+        cached = BrandplotCache.get()
       } catch {}
 
       try {
@@ -190,13 +190,55 @@ export default function LoginPage() {
       } catch (err) {
         console.error("Erro ao registrar", err)
       }
-    }
-
-    register()
+    }    register()
   }
-
+  async function handleLogin() {
+    setIsLoading(true)
+    setError("")
+    
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email: formData.email,
+          password: formData.password 
+        }),
+      })
+      
+      const result = await response.json()
+        if (response.ok) {
+        console.log("Login realizado com sucesso:", result.user)
+        // Salva os dados do usuário no localStorage
+        localStorage.setItem('user', JSON.stringify(result.user))
+        
+        // Salva o idUnico no cache para compatibilidade com o dashboard
+        if (result.user.idUnico) {
+          localStorage.setItem('brandplot_idUnico', result.user.idUnico)
+          
+          // Também atualiza o BrandplotCache
+          BrandplotCache.set({
+            idUnico: result.user.idUnico,
+            companyName: result.user.company || "Empresa",
+            analysis: "",
+            answers: []
+          })
+        }
+        
+        router.push("/dashboard")
+      } else {
+        setError(result.error || "Erro ao fazer login")
+      }
+    } catch (err) {
+      console.error("Erro ao fazer login:", err)
+      setError("Erro de conexão. Tente novamente.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
   const toggleMode = () => {
     setIsLogin(!isLogin)
+    setError("")
     setFormData({
       email: "",
       password: "",
@@ -436,14 +478,20 @@ export default function LoginPage() {
                   <button type="button" className="text-sm text-[#c8b79e] hover:text-[#d0c0a8] transition-colors">
                     Esqueci minha senha
                   </button>
-                </div>
-              )}
+                </div>              )}
 
-              <button
+              {error && (
+                <div className="text-red-400 text-sm text-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                  {error}
+                </div>
+              )}              <button
                 type="submit"
-                className="w-full group relative px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
+                disabled={isLoading}
+                className="w-full group relative px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                <span className="relative z-10">{isLogin ? "Entrar" : "Criar conta"}</span>
+                <span className="relative z-10">
+                  {isLoading ? "Carregando..." : (isLogin ? "Entrar" : "Criar conta")}
+                </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
               </button>
             </form>

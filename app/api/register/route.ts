@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+// Função para gerar o idUnico no formato "empresaome-brandplot"
+function generateIdUnico(companyName: string): string {
+  const cleanName = companyName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+    .replace(/[^a-z0-9]/g, "") // Remove caracteres especiais
+    .trim()
+  
+  return `${cleanName}-brandplot`
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -26,13 +38,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nome da empresa é obrigatório" }, { status: 400 })
     }
 
-    // Atualiza o registro existente da empresa
+    // Gera o idUnico baseado no nome da empresa
+    const generatedIdUnico = generateIdUnico(companyName)    // Atualiza o registro existente da empresa
     const updateData: any = {
       nome_cliente: formData.name || null,
       email: formData.email || null,
       telefone: formData.phone || null,
       senha: formData.password || null,
     }
+
+    // Adiciona o idUnico gerado aos dados de atualização
+    updateData.idUnico = generatedIdUnico
 
     if ((!updateData.email || !updateData.telefone) && cachedData?.answers) {
       try {
@@ -46,17 +62,22 @@ export async function POST(request: Request) {
 
     if (cachedData?.analysis) {
       updateData.diagnostico = cachedData.analysis
-    }
-    if (cachedData?.answers) {
+    }    if (cachedData?.answers) {
       cachedData.answers.forEach((ans: string, idx: number) => {
-        updateData[`resposta_${idx + 1}`] = ans || null
+        // answers[0] is company name (handled separately as nome_empresa)
+        // answers[1-8] map to resposta_1 through resposta_8
+        // answers[9] is contact info (handled separately)
+        if (idx >= 1 && idx <= 8) {
+          updateData[`resposta_${idx}`] = ans || null
+        }
       })
     }
 
+    // Busca registro existente prioritariamente por idUnico gerado
     const { data: existing, error: selectError } = await supabase
       .from("brandplot")
-      .select("id")
-      .eq("nome_empresa", companyName)
+      .select("id, idUnico, nome_empresa")
+      .eq("idUnico", generatedIdUnico)
       .maybeSingle()
 
     if (selectError) {
@@ -75,9 +96,14 @@ export async function POST(request: Request) {
         .update(updateData)
         .eq("id", existing.id)
 
-      dbError = error
-    } else {
-      const insertData = { nome_empresa: companyName, ...updateData }
+      dbError = error    } else {
+      // Se não existe registro, cria um novo com o idUnico gerado
+      const insertData = { 
+        nome_empresa: companyName,
+        idUnico: generatedIdUnico,
+        ...updateData 
+      }
+      
       const { error } = await supabase.from("brandplot").insert(insertData)
       dbError = error
     }

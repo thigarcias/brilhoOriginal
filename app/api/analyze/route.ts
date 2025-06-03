@@ -52,6 +52,21 @@ export async function POST(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseKey as string)
 
+    // Gera o idUnico baseado no nome da empresa
+    const generateIdUnico = (nomeEmpresa: string): string => {
+      if (!nomeEmpresa) {
+        return `empresa-${Date.now()}-brandplot`
+      }
+      
+      const cleanName = nomeEmpresa
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '') // Remove todos os espaços
+        .replace(/[^a-z0-9]/g, '') // Remove caracteres especiais, mantém só letras e números
+      
+      return `${cleanName}-brandplot`
+    }
+
     // Monta o objeto para o banco
     let contact = { phone: null, email: null }
     try {
@@ -59,8 +74,12 @@ export async function POST(request: Request) {
         contact = JSON.parse(answers[9])
       }
     } catch {}
+
+    const idUnico = generateIdUnico(answers[0])
+    
     const dbData = {
       nome_empresa: answers[0] || null,
+      idUnico: idUnico,
       resposta_1: answers[1] || null,
       resposta_2: answers[2] || null,
       resposta_3: answers[3] || null,
@@ -71,18 +90,13 @@ export async function POST(request: Request) {
       resposta_8: answers[8] || null,
       contato_telefone: contact.phone || null,
       contato_email: contact.email || null,
-      botao_recomecar: null,
-      botao_wpp: null,
+      scoreDiagnostico: null as string | null // Será preenchido após obter a análise
     }
-    const supabasePromise = supabase.from("brandplot").insert([dbData])
-
     try {
       console.log("Making OpenAI API call...")
 
-      // Use Promise.all para rodar Supabase e OpenAI juntos
-      const [supabaseResult, completion] = await Promise.all([
-        supabasePromise,
-        openai.chat.completions.create({
+      // Primeiro, obter a análise do OpenAI
+      const completion = await openai.chat.completions.create({
           model: "gpt-4",
           messages: [
             {
@@ -133,8 +147,7 @@ Use emojis e formatação clara. Seja específico e actionable nas recomendaçõ
           ],
           max_tokens: 2000,
           temperature: 0.7,
-        }),
-      ])
+        })
 
       console.log("OpenAI API call successful")
 
@@ -146,7 +159,37 @@ Use emojis e formatação clara. Seja específico e actionable nas recomendaçõ
       }
 
       console.log("Analysis generated successfully")
-      return NextResponse.json({ analysis })
+      
+      // Extrair o score do texto da análise
+      let scoreDiagnostico = null;
+      if (analysis) {
+        // Procura por um padrão como "🏁 Nota de Clareza & Emoção da Marca: 75/100"
+        const scoreMatch = analysis.match(/Nota de Clareza & Emoção da Marca:\s*(\d+)\/100/);
+        if (scoreMatch && scoreMatch[1]) {
+          scoreDiagnostico = scoreMatch[1];
+          console.log("Score extraído:", scoreDiagnostico);
+        }
+      }
+      
+      // Atualizar o objeto dbData com o score extraído
+      dbData.scoreDiagnostico = scoreDiagnostico;
+      
+      // Salvar no Supabase
+      try {
+        const supabaseResult = await supabase.from("brandplot").insert([dbData]);
+        console.log("Dados salvos no Supabase:", supabaseResult);
+      } catch (supabaseError) {
+        console.error("Erro ao salvar no Supabase:", supabaseError);
+        // Continua o fluxo mesmo com erro no Supabase
+      }
+      
+      // Armazena o idUnico no cache para recuperação posterior
+      console.log("Generated idUnico:", idUnico)
+      
+      return NextResponse.json({ 
+        analysis,
+        idUnico: idUnico // Inclui o idUnico na resposta para cache no frontend
+      })
     } catch (openaiError: any) {
       console.error("OpenAI API error:", {
         message: openaiError.message,

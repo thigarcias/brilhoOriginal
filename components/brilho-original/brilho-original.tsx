@@ -4,6 +4,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "
 import { Pacifico } from "next/font/google"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { BrandplotCache, generateIdUnico } from "@/lib/brandplot-cache"
 import { useState, useEffect } from "react"
 import { ChevronLeft, Upload, Loader2, Award, MessageCircle } from "lucide-react"
 import ReactMarkdown from "react-markdown"
@@ -339,10 +340,12 @@ function QuestionStep({
   onNext: () => void
   onBack: () => void
   isLast: boolean
-}) {
-  const isFileUpload = questionNumber === 9
+}) {  const isFileUpload = questionNumber === 9
   const isContactStep = questionNumber === 10
   const isCompanyName = questionNumber === 1
+  
+  // Estado para feedback de paste
+  const [pasteStatus, setPasteStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
   // Para o passo de contato, separar resposta em dois campos
   const [contact, setContact] = useState<{ phone: string; email: string }>(() => {
@@ -366,7 +369,6 @@ function QuestionStep({
   const isContactValid = isContactStep ? (
     (contact.phone && isValidPhone(contact.phone)) || (contact.email && isValidEmail(contact.email))
   ) : true
-
   // Atualiza o answer do step pai
   useEffect(() => {
     if (isContactStep) {
@@ -374,6 +376,44 @@ function QuestionStep({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contact])
+  // Funcionalidade de paste para imagens
+  useEffect(() => {
+    if (!isFileUpload) return
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile()
+          if (blob) {
+            // Verifica o tamanho do arquivo (10MB = 10 * 1024 * 1024 bytes)
+            if (blob.size > 10 * 1024 * 1024) {
+              setPasteStatus('error')
+              setTimeout(() => setPasteStatus('idle'), 3000)
+              return
+            }
+            
+            // Cria um nome para a imagem colada
+            const fileName = `imagem-colada-${Date.now()}.${blob.type.split('/')[1] || 'png'}`
+            setAnswer(fileName)
+            setPasteStatus('success')
+            
+            // Remove o feedback após 2 segundos
+            setTimeout(() => setPasteStatus('idle'), 2000)
+            
+            console.log('Imagem colada:', fileName, blob)
+          }
+          break
+        }
+      }
+    }
+
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [isFileUpload, setAnswer])
 
   return (
     <motion.div
@@ -416,8 +456,7 @@ function QuestionStep({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
           className="mb-8"
-        >
-          {isFileUpload ? (
+        >          {isFileUpload ? (
             <div className="relative">
               <input
                 type="file"
@@ -426,16 +465,39 @@ function QuestionStep({
                   const file = e.target.files?.[0]
                   if (file) {
                     setAnswer(file.name)
+                    setPasteStatus('idle')
                   }
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              <div className="border-2 border-dashed border-[#c8b79e]/30 rounded-xl p-8 hover:border-[#c8b79e]/50 transition-colors duration-300 bg-white/[0.02]">
-                <Upload className="w-12 h-12 text-[#c8b79e] mx-auto mb-4" />
+              <div className={`border-2 border-dashed rounded-xl p-8 transition-all duration-300 bg-white/[0.02] ${
+                pasteStatus === 'success' 
+                  ? 'border-green-400/50 bg-green-400/10' 
+                  : pasteStatus === 'error'
+                  ? 'border-red-400/50 bg-red-400/10'
+                  : 'border-[#c8b79e]/30 hover:border-[#c8b79e]/50'
+              }`}>
+                <Upload className={`w-12 h-12 mx-auto mb-4 ${
+                  pasteStatus === 'success' 
+                    ? 'text-green-400' 
+                    : pasteStatus === 'error'
+                    ? 'text-red-400'
+                    : 'text-[#c8b79e]'
+                }`} />
                 <p className="text-white/60 mb-2">
-                  {answer ? `Arquivo selecionado: ${answer}` : "Clique para enviar a imagem"}
+                  {pasteStatus === 'success' 
+                    ? '✅ Imagem colada com sucesso!' 
+                    : pasteStatus === 'error'
+                    ? '❌ Erro: Arquivo muito grande (máx. 10MB)'
+                    : answer 
+                    ? `Arquivo selecionado: ${answer}` 
+                    : "Clique para enviar a imagem"
+                  }
                 </p>
-                <p className="text-white/40 text-sm">PNG, JPG até 10MB</p>
+                <p className="text-white/40 text-sm mb-1">PNG, JPG até 10MB</p>
+                <p className="text-white/40 text-xs">
+                  💡 Dica: Você também pode usar <span className="text-[#c8b79e] font-medium">Ctrl+V</span> para colar uma imagem
+                </p>
               </div>
             </div>
           ) : isContactStep ? (
@@ -513,18 +575,22 @@ export default function BrilhoOriginal({
 
   // Get the company name from the first answer
   const companyName = answers[0] ? answers[0].trim() : "Sua Marca"
-
-  // Salva diagnóstico e respostas no cache do navegador
+  // Salva diagnóstico e respostas no cache do navegador com idUnico
   useEffect(() => {
     if (analysis && currentStep === 12) {
-      const cacheData = { companyName, analysis, answers }
-      if (answers[9]) {
-        cacheData.contact = answers[9]
-      }
-      try {
-        localStorage.setItem("brandplotDraft", JSON.stringify(cacheData))
-      } catch {
-        /* noop */
+      // Se ainda não temos idUnico no cache, gera um
+      const existingCache = BrandplotCache.get()
+      if (!existingCache?.idUnico) {
+        const idUnico = generateIdUnico(companyName)
+        const cacheData = {
+          idUnico,
+          companyName,
+          analysis,
+          answers,
+          ...(answers[9] && { contact: answers[9] })
+        }
+        BrandplotCache.set(cacheData)
+        console.log("Cache atualizado com idUnico gerado localmente:", idUnico)
       }
     }
   }, [analysis, answers, currentStep, companyName])
@@ -619,9 +685,7 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
           // If we can't parse the error response, use the status
         }
         throw new Error(errorMessage)
-      }
-
-      const data = await response.json()
+      }      const data = await response.json()
       console.log("API response data:", data)
 
       if (!data.analysis) {
@@ -629,6 +693,20 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
       }
 
       setAnalysis(data.analysis)
+      
+      // Salva os dados no cache incluindo o idUnico retornado pela API
+      if (data.idUnico) {
+        const cacheData = {
+          idUnico: data.idUnico,
+          companyName,
+          analysis: data.analysis,
+          answers: answers,
+          ...(answers[9] && { contact: answers[9] })
+        }
+        BrandplotCache.set(cacheData)
+        console.log("Dados salvos no cache com idUnico:", data.idUnico)
+      }
+      
       setCurrentStep(12) // Show results
       setIsLoading(false)
     } catch (error: any) {
