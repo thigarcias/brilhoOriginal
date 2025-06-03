@@ -121,6 +121,24 @@ export default function LoginPage() {
           }))
         }
       }
+
+      if (!company && !contact) {
+        try {
+          const stored = localStorage.getItem('brandplotDraft')
+          if (stored) {
+            const cached = JSON.parse(stored)
+            const contactInfo = cached.contact
+              ? JSON.parse(cached.contact)
+              : {}
+            setFormData(prev => ({
+              ...prev,
+              companyName: cached.companyName || prev.companyName,
+              email: contactInfo.email || prev.email,
+              phone: contactInfo.phone || prev.phone,
+            }))
+          }
+        } catch {}
+      }
     }
   }, [])
 
@@ -164,7 +182,11 @@ export default function LoginPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ formData, cachedData: cached }),
         })
-        console.log("Registro", await response.json())
+        const result = await response.json()
+        console.log("Registro", result)
+        if (response.ok) {
+          router.push("/dashboard")
+        }
       } catch (err) {
         console.error("Erro ao registrar", err)
       }
