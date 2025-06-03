@@ -514,6 +514,16 @@ export default function BrilhoOriginal({
   // Get the company name from the first answer
   const companyName = answers[0] ? answers[0].trim() : "Sua Marca"
 
+  // Salva diagnóstico e respostas no cache do navegador
+  useEffect(() => {
+    if (analysis && currentStep === 12) {
+      const cacheData = { companyName, analysis, answers }
+      try {
+        localStorage.setItem("brandplotDraft", JSON.stringify(cacheData))
+      } catch {}
+    }
+  }, [analysis, answers, currentStep, companyName])
+
   const fadeUpVariants = {
     hidden: { opacity: 0, y: 30 },
     visible: (i: number) => ({
