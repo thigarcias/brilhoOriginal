@@ -518,9 +518,14 @@ export default function BrilhoOriginal({
   useEffect(() => {
     if (analysis && currentStep === 12) {
       const cacheData = { companyName, analysis, answers }
+      if (answers[9]) {
+        cacheData.contact = answers[9]
+      }
       try {
         localStorage.setItem("brandplotDraft", JSON.stringify(cacheData))
-      } catch {}
+      } catch {
+        /* noop */
+      }
     }
   }, [analysis, answers, currentStep, companyName])
 
