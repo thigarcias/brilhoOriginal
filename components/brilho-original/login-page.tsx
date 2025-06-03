@@ -146,8 +146,31 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Aqui você implementaria a lógica de login/cadastro
-    console.log(isLogin ? "Login" : "Cadastro", formData)
+    if (isLogin) {
+      console.log("Login", formData)
+      return
+    }
+
+    async function register() {
+      let cached: any = null
+      try {
+        const stored = localStorage.getItem("brandplotDraft")
+        if (stored) cached = JSON.parse(stored)
+      } catch {}
+
+      try {
+        const response = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ formData, cachedData: cached }),
+        })
+        console.log("Registro", await response.json())
+      } catch (err) {
+        console.error("Erro ao registrar", err)
+      }
+    }
+
+    register()
   }
 
   const toggleMode = () => {
