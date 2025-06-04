@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { BrandplotCache } from "@/lib/brandplot-cache"
 import DiagnosticoCompleto from "../../../components/brilho-original/diagnostico-completo"
 
-export default function DiagnosticoPage() {
+function DiagnosticoContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [brandData, setBrandData] = useState<any>(null)
@@ -147,11 +147,33 @@ export default function DiagnosticoPage() {
       </div>
     )
   }
-
   return (
     <DiagnosticoCompleto 
       brandData={brandData}
       onBack={() => router.push("/dashboard")}
     />
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814] flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center"
+      >
+        <div className="w-16 h-16 border-4 border-[#c8b79e]/30 border-t-[#c8b79e] rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-white/70">Carregando diagnóstico...</p>
+      </motion.div>
+    </div>
+  )
+}
+
+export default function DiagnosticoPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <DiagnosticoContent />
+    </Suspense>
   )
 }
