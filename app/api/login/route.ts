@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import bcrypt from "bcryptjs"
 
 export async function POST(request: Request) {
   try {
@@ -49,9 +50,7 @@ export async function POST(request: Request) {
         { error: "Email não encontrado" },
         { status: 401 }
       )
-    }
-
-    // Verifica se a senha está cadastrada
+    }    // Verifica se a senha está cadastrada
     if (!user.senha) {
       return NextResponse.json(
         { error: "Usuário ainda não completou o cadastro" },
@@ -59,8 +58,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verifica a senha (comparação simples - em produção use hash)
-    if (user.senha !== password) {
+    // Verifica a senha usando bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.senha)
+    if (!isPasswordValid) {
       return NextResponse.json(
         { error: "Senha incorreta" },
         { status: 401 }

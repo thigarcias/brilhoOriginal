@@ -24,6 +24,7 @@ interface BrandData {
   contato_telefone: string | null
   contato_email: string | null
   scoreDiagnostico: string | null
+  contexto: string | null
 }
 
 export default function Dashboard() {
@@ -157,7 +158,7 @@ export default function Dashboard() {
                 className="rounded-full"
               />
             </div>
-            <span className="text-white font-medium">Brilho Original</span>
+            <span className="text-white font-medium">{brandData?.nome_empresa}</span>
           </div>          <nav className="hidden md:flex items-center gap-8">
             <Link
               href="/dashboard"
@@ -268,10 +269,7 @@ export default function Dashboard() {
               <button 
                 className="text-[#c8b79e] hover:text-[#d0c0a8] transition-colors text-sm font-medium"
                 onClick={() => {
-                  const idUnico = getIdUnico();
-                  if (idUnico) {
-                    fetchBrandData(idUnico);
-                  }
+                  router.push("/dashboard/diagnostico");
                 }}
               >
                 Ver diagnóstico completo
@@ -296,8 +294,7 @@ export default function Dashboard() {
                 Começar
               </button>
             </div>
-          </motion.div>
-        </div>
+          </motion.div>        </div>
 
         {/* Pricing cards */}
         <div className="grid md:grid-cols-3 gap-6">

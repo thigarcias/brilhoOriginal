@@ -5,6 +5,7 @@ interface BrandplotCacheData {
   analysis: string
   answers: string[]
   contact?: string
+  scoreDiagnostico?: string
   timestamp: number
 }
 

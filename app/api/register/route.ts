@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import bcrypt from "bcryptjs"
 
 // Função para gerar o idUnico no formato "empresaome-brandplot"
 function generateIdUnico(companyName: string): string {
@@ -36,15 +37,20 @@ export async function POST(request: Request) {
 
     if (!companyName) {
       return NextResponse.json({ error: "Nome da empresa é obrigatório" }, { status: 400 })
-    }
+    }    // Gera o idUnico baseado no nome da empresa
+    const generatedIdUnico = generateIdUnico(companyName)
 
-    // Gera o idUnico baseado no nome da empresa
-    const generatedIdUnico = generateIdUnico(companyName)    // Atualiza o registro existente da empresa
+    // Atualiza o registro existente da empresa
     const updateData: any = {
       nome_cliente: formData.name || null,
       email: formData.email || null,
       telefone: formData.phone || null,
-      senha: formData.password || null,
+    }
+
+    // Criptografa a senha se fornecida
+    if (formData.password) {
+      const saltRounds = 12
+      updateData.senha = await bcrypt.hash(formData.password, saltRounds)
     }
 
     // Adiciona o idUnico gerado aos dados de atualização

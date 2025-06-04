@@ -171,7 +171,6 @@ function ResultsDisplay({
 
   useEffect(() => {
     if (analysis) {
-      // Extract score from analysis
       const scoreMatch = analysis.match(/Nota de Clareza & Emoção da Marca: (\d+)\/100/)
       if (scoreMatch && scoreMatch[1]) {
         const scoreValue = Number.parseInt(scoreMatch[1], 10)
@@ -693,18 +692,18 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
       }
 
       setAnalysis(data.analysis)
-      
-      // Salva os dados no cache incluindo o idUnico retornado pela API
+        // Salva os dados no cache incluindo o idUnico retornado pela API
       if (data.idUnico) {
         const cacheData = {
           idUnico: data.idUnico,
           companyName,
           analysis: data.analysis,
           answers: answers,
+          scoreDiagnostico: data.scoreDiagnostico, // Inclui o score no cache
           ...(answers[9] && { contact: answers[9] })
         }
         BrandplotCache.set(cacheData)
-        console.log("Dados salvos no cache com idUnico:", data.idUnico)
+        console.log("Dados salvos no cache com idUnico:", data.idUnico, "Score:", data.scoreDiagnostico)
       }
       
       setCurrentStep(12) // Show results
