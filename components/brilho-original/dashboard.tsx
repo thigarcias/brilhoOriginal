@@ -101,11 +101,10 @@ export default function Dashboard() {
       if (storedIdUnico) {
         // Se encontrou no localStorage mas não no cache, atualiza o cache
         try {
-          if (!BrandplotCache.get()) {
-            BrandplotCache.set({
+          if (!BrandplotCache.get()) {            BrandplotCache.set({
               idUnico: storedIdUnico,
               companyName: "Empresa",
-              analysis: "",
+              diagnostico: "",
               answers: []
             })
           }

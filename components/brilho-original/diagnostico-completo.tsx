@@ -21,7 +21,7 @@ interface BrandData {
   contato_telefone: string | null
   contato_email: string | null
   scoreDiagnostico: string | null
-  analysis?: string | null
+  diagnostico?: string | null
   contexto: string | null
 }
 
@@ -72,29 +72,11 @@ ${brandData.resposta_4 && brandData.resposta_5 ? '\\n\\nExiste um alinhamento en
 ${brandData.resposta_6 ? `Você deseja que sua marca seja percebida como: "${brandData.resposta_6}". Esta percepção pode ser fortalecida através de estratégias específicas de comunicação.` : 'A percepção desejada da marca precisa ser melhor definida.'}
 
 ### 🎯 Propósito Central
-${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalmente ${brandData.resposta_7}". Este propósito é o coração da sua marca e deve guiar todas as decisões de comunicação.` : 'O propósito da marca precisa ser claramente articulado.'}
-
-## 🧠 Insights-chave para Reposicionamento
-
-### 💡 Principais Oportunidades
-1. **Clareza na Comunicação**: Simplifique sua mensagem principal
-2. **Consistência Visual**: Alinhe todos os pontos de contato da marca
-3. **Conexão Emocional**: Fortaleça o vínculo com seu público
-4. **Diferenciação**: Destaque seus diferenciais únicos
-
-### 🚀 Próximos Passos Recomendados
-1. Refinar o posicionamento estratégico
-2. Desenvolver guidelines de comunicação
-3. Criar estratégia de conteúdo alinhada
-4. Implementar identidade visual consistente
-
-### 📈 Potencial de Crescimento
-Sua marca tem excelente potencial para se destacar no mercado. Com os ajustes corretos, pode alcançar uma posição de liderança em seu segmento.`
+${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalmente ${brandData.resposta_7}". Este propósito é o coração da sua marca e deve guiar todas as decisões de comunicação.` : 'O propósito da marca precisa ser claramente articulado.'}`
   }
-
   useEffect(() => {
     // Usar análise salva ou gerar uma de exemplo
-    const currentAnalysis = brandData.analysis || getSampleAnalysis()
+    const currentAnalysis = brandData.diagnostico || getSampleAnalysis()
     setAnalysis(currentAnalysis)
 
     if (currentAnalysis) {

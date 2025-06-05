@@ -587,8 +587,7 @@ export default function BrilhoOriginal({
   // Get the company name from the first answer
   const companyName = answers[0] ? answers[0].trim() : "Sua Marca"
   // Salva diagnóstico e respostas no cache do navegador com idUnico
-  useEffect(() => {
-    if (analysis && currentStep === 12) {
+  useEffect(() => {    if (analysis && currentStep === 12) {
       // Se ainda não temos idUnico no cache, gera um
       const existingCache = BrandplotCache.get()
       if (!existingCache?.idUnico) {
@@ -596,7 +595,7 @@ export default function BrilhoOriginal({
         const cacheData = {
           idUnico,
           companyName,
-          analysis,
+          diagnostico: analysis,
           answers,
           ...(answers[9] && { contact: answers[9] })
         }
@@ -705,11 +704,10 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
 
       setAnalysis(data.analysis)
         // Salva os dados no cache incluindo o idUnico retornado pela API
-      if (data.idUnico) {
-        const cacheData = {
+      if (data.idUnico) {        const cacheData = {
           idUnico: data.idUnico,
           companyName,
-          analysis: data.analysis,
+          diagnostico: data.analysis,
           answers: answers,
           scoreDiagnostico: data.scoreDiagnostico, // Inclui o score no cache
           ...(answers[9] && { contact: answers[9] })

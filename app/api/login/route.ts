@@ -30,11 +30,10 @@ export async function POST(request: Request) {
     const supabase = createClient(supabaseUrl, supabaseKey as string)
 
     // Busca o usuário pelo email
-    const { data: user, error: selectError } = await supabase
+    const { data: users, error: selectError } = await supabase
       .from("brandplot")
       .select("id, nome_cliente, email, senha, nome_empresa, idUnico")
       .eq("email", email.toLowerCase().trim())
-      .maybeSingle()
 
     if (selectError) {
       console.error("Erro ao buscar usuário:", selectError.message)
@@ -45,12 +44,15 @@ export async function POST(request: Request) {
     }
 
     // Verifica se o usuário existe
-    if (!user) {
+    if (!users || users.length === 0) {
       return NextResponse.json(
         { error: "Email não encontrado" },
         { status: 401 }
       )
-    }    // Verifica se a senha está cadastrada
+    }    // Se há múltiplos usuários com o mesmo email, pega o primeiro
+    const user = users[0]
+
+    // Verifica se a senha está cadastrada
     if (!user.senha) {
       return NextResponse.json(
         { error: "Usuário ainda não completou o cadastro" },

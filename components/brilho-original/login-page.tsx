@@ -216,12 +216,11 @@ export default function LoginPage() {
         // Salva o idUnico no cache para compatibilidade com o dashboard
         if (result.user.idUnico) {
           localStorage.setItem('brandplot_idUnico', result.user.idUnico)
-          
-          // Também atualiza o BrandplotCache
+            // Também atualiza o BrandplotCache
           BrandplotCache.set({
             idUnico: result.user.idUnico,
             companyName: result.user.company || "Empresa",
-            analysis: "",
+            diagnostico: "",
             answers: []
           })
         }

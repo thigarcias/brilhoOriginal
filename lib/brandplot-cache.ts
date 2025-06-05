@@ -2,7 +2,7 @@
 interface BrandplotCacheData {
   idUnico: string
   companyName: string
-  analysis: string
+  diagnostico: string
   answers: string[]
   contact?: string
   scoreDiagnostico?: string
