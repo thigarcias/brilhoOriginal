@@ -171,11 +171,23 @@ function ResultsDisplay({
 
   useEffect(() => {
     if (analysis) {
-      const scoreMatch = analysis.match(/Nota de Clareza & Emoção da Marca: (\d+)\/100/)
-      if (scoreMatch && scoreMatch[1]) {
-        const scoreValue = Number.parseInt(scoreMatch[1], 10)
-        setScore(scoreValue)
+      // First try to get score from cache
+      let scoreValue = 0
+      const cachedData = BrandplotCache.get()
+      if (cachedData?.scoreDiagnostico) {
+        scoreValue = Number.parseInt(cachedData.scoreDiagnostico, 10)
+        console.log("Score recuperado do cache:", scoreValue)
+      } else {
+        // Fallback: try to extract from analysis text
+        const scoreMatch = analysis.match(/Nota de Clareza & Emoção da Marca: (\d+)\/100/)
+        if (scoreMatch && scoreMatch[1]) {
+          scoreValue = Number.parseInt(scoreMatch[1], 10)
+          console.log("Score extraído da análise:", scoreValue)
+        }
+      }
 
+      if (scoreValue > 0) {
+        setScore(scoreValue)
         // Animate the score
         const animation = animate(count, scoreValue, {
           duration: 2.5,
