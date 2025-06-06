@@ -431,20 +431,20 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
                     <h2 className="text-xl md:text-2xl font-bold text-white">Próximos Passos</h2>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                     {parsedDiagnostico.proximos_passos.map((passo, index) => (
                       <motion.div
                         key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.9 + index * 0.1, duration: 0.5 }}
-                        className="bg-white/[0.05] rounded-xl p-4 border border-white/10 aspect-square flex flex-col"
+                        className="bg-white/[0.05] rounded-xl p-3 md:p-6 border border-white/10 min-h-[120px] flex flex-col"
                       >
                         <div className="flex-1 flex flex-col justify-between">
-                          <h3 className="text-white font-semibold text-sm mb-3 leading-tight">
+                          <h3 className="text-white font-semibold text-xs md:text-sm mb-0 leading-tight">
                             {index + 1}. {passo.acao}
                           </h3>
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-px mt-[-2px]">
                             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getBadgeColor(passo.impacto)} self-start`}>
                               {getBadgeIcon(passo.impacto)}
                               Impacto: {passo.impacto}
