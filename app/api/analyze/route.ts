@@ -317,10 +317,8 @@ export async function POST(request: Request) {
         // Extrair scores do JSON
         scoreDiagnostico = parsedAnalysis.score_ui?.toString() || parsedAnalysis.score_interno?.toString() || "0"
         
-        console.log("JSON parsed successfully:", parsedAnalysis)
+
       } catch (parseError) {
-        console.error("Error parsing JSON from GPT response:", parseError)
-        console.log("Raw response:", analysis)
         
         // Fallback: tentar extrair score do texto tradicional
         const scoreMatch = analysis.match(/(?:Nota|Score).*?(\d+)(?:\/100)?/i)
