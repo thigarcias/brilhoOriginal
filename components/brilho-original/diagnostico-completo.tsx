@@ -600,8 +600,7 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
                 Pronto para <span className="text-[#fde68a]">transformar sua marca</span> e <span className="text-[#fde68a]">atrair clientes que pagam mais?</span>
               </p>
               <p className="text-lg text-white/90 mb-8 font-medium">Dê o próximo passo e fale com um especialista para impulsionar seu negócio.</p>
-              
-              <a
+                <a
                 href="https://wa.me/5511974564367?text=Olá! Quero valorizar minha marca com a Brilho Original."
                 target="_blank"
                 rel="noopener noreferrer"
@@ -610,6 +609,22 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
                 <MessageCircle className="w-6 h-6 text-white" />
                 Quero valorizar minha marca
               </a>
+                
+              {/* Botão de Cadastro - Valorização da Marca */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <p className="text-white/70 text-sm mb-4 text-center">
+                  Crie sua conta e tenha acesso a mais ferramentas de marca
+                </p>                
+                <a
+                  href={`/login?mode=register&company=${encodeURIComponent(companyName)}&contact=${encodeURIComponent(JSON.stringify({ phone: brandData.contato_telefone, email: brandData.contato_email }) || '')}`}
+                  className="group relative flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold text-base rounded-xl transition-all duration-300 shadow-lg hover:scale-105 border border-[#c8b79e]/30 focus:outline-none focus:ring-2 focus:ring-[#c8b79e]/50"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  Criar Conta Gratuita
+                </a>
+              </div>
             </div>
           </motion.div>
         </div>
