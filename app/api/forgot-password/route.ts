@@ -90,11 +90,11 @@ export async function POST(request: Request) {
     
     const mailOptions = {
       from: {
-        name: 'Brilho Original',
+        name: 'BrandPlot',
         address: process.env.EMAIL_USER || 'noreply@brilhooriginal.com'
       },
       to: email,
-      subject: 'Redefinição de senha - Brilho Original',
+      subject: 'Redefinição de senha - BrandPlot',
       html: `
         <!DOCTYPE html>
         <html>
@@ -196,7 +196,7 @@ export async function POST(request: Request) {
             
             <div class="footer">
               <p>Esta é uma mensagem automática, não responda este email.</p>
-              <p>&copy; ${new Date().getFullYear()} Brilho Original. Todos os direitos reservados.</p>
+              <p>&copy; ${new Date().getFullYear()} BrandPlot. Todos os direitos reservados.</p>
             </div>
           </div>
         </body>

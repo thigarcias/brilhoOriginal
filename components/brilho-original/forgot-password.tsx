@@ -308,12 +308,12 @@ export default function ForgotPasswordPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-6">
               <Image
                 src="/images/brilho-original-logo.png"
-                alt="Brilho Original"
+                alt="BrandPlot"
                 width={24}
                 height={24}
                 className="rounded-full"
               />
-              <span className="text-sm text-white/60 tracking-wide">Brilho Original</span>
+              <span className="text-sm text-white/60 tracking-wide">BrandPlot</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight">

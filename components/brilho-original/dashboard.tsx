@@ -151,7 +151,7 @@ export default function Dashboard() {
             <div className="w-10 h-10 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
               <Image
                 src="/images/brilho-original-logo.png"
-                alt="Brilho Original"
+                alt="BrandPlot"
                 width={24}
                 height={24}
                 className="rounded-full"

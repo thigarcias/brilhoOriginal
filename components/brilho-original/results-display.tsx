@@ -72,7 +72,7 @@ export default function ResultsDisplay({
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-6">
             <Image
               src="/images/brilho-original-logo.png"
-              alt="Brilho Original"
+              alt="BrandPlot"
               width={20}
               height={20}
               className="rounded-full"
@@ -142,7 +142,7 @@ export default function ResultsDisplay({
               </p>
               <p className="text-lg text-white/90 mb-8 font-medium">Dê o próximo passo e fale com um especialista para impulsionar seu negócio.</p>              
               <a
-                href="https://wa.me/5511974564367?text=Olá! Quero valorizar minha marca com a Brilho Original."
+                href="https://wa.me/5511974564367?text=Olá! Quero valorizar minha marca com a BrandPlot."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-green-500 via-green-600 to-green-500 hover:from-green-600 hover:to-green-500 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-xl hover:scale-105 border-2 border-green-400/40 focus:outline-none focus:ring-2 focus:ring-green-300"

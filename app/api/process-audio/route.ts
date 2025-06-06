@@ -104,7 +104,7 @@ export async function POST(request: Request) {
 
     // inicia o chat em modo streaming
     const chatStream = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         ...history

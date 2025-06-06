@@ -111,7 +111,7 @@ function LoadingState({ companyName = "sua marca" }: { companyName?: string }) {
         >
           <Image
             src="/images/brilho-original-logo.png"
-            alt="Brilho Original"
+            alt="BrandPlot"
             width={20}
             height={20}
             className="rounded-full"
@@ -131,7 +131,7 @@ function LoadingState({ companyName = "sua marca" }: { companyName?: string }) {
               <div className="w-20 h-20 rounded-full bg-[#1a1814] flex items-center justify-center">
                 <Image
                   src="/images/brilho-original-logo.png"
-                  alt="Brilho Original"
+                  alt="BrandPlot"
                   width={40}
                   height={40}
                   className="rounded-full"

@@ -14,7 +14,7 @@ async function fetchCompanyContext(companyName: string, idUnico: string, supabas
 
     // Usar a SDK oficial do OpenAI para Responses API
     const response = await openai.responses.create({
-      model: "gpt-4.1", // Modelo correto
+      model: "gpt-4.1-mini", // Modelo correto
       tools: [{
         type: "web_search_preview",
         search_context_size: "medium" 
