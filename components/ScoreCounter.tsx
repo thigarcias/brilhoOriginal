@@ -38,14 +38,14 @@ export default function ScoreCounter({ targetScore, duration = 2000 }: ScoreCoun
   }, [targetScore, duration])
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-400"
+    if (score >= 80) return "text-amber-400"
     if (score >= 60) return "text-yellow-400"
     if (score >= 40) return "text-orange-400"
     return "text-red-400"
   }
 
   const getCircleColor = (score: number) => {
-    if (score >= 80) return "#10b981" // green-500
+    if (score >= 80) return "#fbbf24" // amber-400
     if (score >= 60) return "#f59e0b" // yellow-500
     if (score >= 40) return "#f97316" // orange-500
     return "#ef4444" // red-500
@@ -63,7 +63,7 @@ export default function ScoreCounter({ targetScore, duration = 2000 }: ScoreCoun
     >
       {/* Background circle */}
       <svg className="w-full h-full absolute transform -rotate-90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45" fill="none" stroke="#2a2520" strokeWidth="8" />
+        <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
         <motion.circle
           cx="50"
           cy="50"

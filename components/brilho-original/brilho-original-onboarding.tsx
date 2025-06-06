@@ -518,28 +518,33 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
           // If we can't parse the error response, use the status
         }
         throw new Error(errorMessage)
-      }
-
-      const data = await response.json()
+      }      const data = await response.json()
       console.log("API response data:", data)
 
-      if (!data.analysis) {
+      if (!data.analysis && !data.parsedAnalysis) {
         throw new Error("No analysis received from API")
       }
 
-      setAnalysis(data.analysis)
+      // Usar análise estruturada se disponível, senão usar texto
+      const analysisToSave = data.parsedAnalysis || data.analysis
+      setAnalysis(analysisToSave)
+      
       // Salva os dados no cache incluindo o idUnico retornado pela API
       if (data.idUnico) {
         const cacheData = {
           idUnico: data.idUnico,
           companyName,
-          diagnostico: data.analysis,
+          diagnostico: typeof analysisToSave === 'object' ? JSON.stringify(analysisToSave) : analysisToSave,
           answers: answers,
           scoreDiagnostico: data.scoreDiagnostico, // Inclui o score no cache
+          parsedAnalysis: data.parsedAnalysis, // Inclui análise estruturada se disponível
           ...(answers[9] && { contact: answers[9] })
         }
         BrandplotCache.set(cacheData)
         console.log("Dados salvos no cache com idUnico:", data.idUnico, "Score:", data.scoreDiagnostico)
+        if (data.parsedAnalysis) {
+          console.log("Análise estruturada JSON salva:", data.parsedAnalysis)
+        }
       }
       
       // Redirecionar para a página de diagnóstico

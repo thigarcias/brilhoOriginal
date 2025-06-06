@@ -171,13 +171,12 @@ export async function POST(request: Request) {
       telefone: contact.phone || null,
       email: contact.email || null,
       scoreDiagnostico: null as string | null,
+      diagnostico: null as string | null,
       contexto: null as string | null
     }
     try {
-      // Preparar conteúdo da mensagem para Chat Completions (suporta visão)
-      let messageContent: any[] = [{
-        type: "text",
-        text: `Analise esta marca com base nas seguintes respostas:
+      // Preparar conteúdo da mensagem
+      let messageContent = `Analise esta marca com base nas seguintes respostas:
 
 1. Nome da empresa: ${answers[0] || "Não informado"}
 2. O que te motivou a criar essa marca? ${answers[1] || "Não informado"}
@@ -188,179 +187,109 @@ export async function POST(request: Request) {
 7. Como você gostaria que sua marca fosse percebida? ${answers[6] || "Não informado"}
 8. Em uma frase: "Minha marca existe para que as pessoas possam finalmente __________." ${answers[7] || "Não informado"}
 10. Contato informado: Celular: ${contact.phone || "Não informado"}, E-mail: ${contact.email || "Não informado"}`
-      }]
 
-      // Adicionar imagem se fornecida
+      // Verificar se há imagem do Instagram
       if (answers[8]) {
         try {
           const imageData = JSON.parse(answers[8])
           if (imageData.base64 && imageData.type) {
-            messageContent.push({
-              type: "image_url",
-              image_url: {
-                url: imageData.base64,
-                detail: "high"
-              }
-            })
-            
-            // Adicionar contexto sobre a imagem no texto
-            messageContent[0].text += `\n\n9. ANÁLISE DO INSTAGRAM: Analise detalhadamente a imagem do perfil do Instagram fornecida. Examine a bio, feed visual, destaques e qualquer elemento visível para entender melhor o posicionamento atual da marca e como ela se apresenta nas redes sociais.`
+            messageContent += `\n\n9. ANÁLISE DO INSTAGRAM: Analise detalhadamente a imagem do perfil do Instagram fornecida. Examine a bio, feed visual, destaques e qualquer elemento visível para entender melhor o posicionamento atual da marca e como ela se apresenta nas redes sociais. [IMAGEM FORNECIDA]`
           }
         } catch (error) {
           console.log("Erro ao processar imagem, continuando sem ela:", error)
-          messageContent[0].text += `\n\n9. Instagram screenshot: Fornecido mas não pôde ser processado`
+          messageContent += `\n\n9. Instagram screenshot: Fornecido mas não pôde ser processado`
         }
       } else {
-        messageContent[0].text += `\n\n9. Instagram screenshot: Não fornecido`
+        messageContent += `\n\n9. Instagram screenshot: Não fornecido`
       }
 
-      // Usar Chat Completions com GPT-4 Vision para suportar análise de imagens
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // Modelo que suporta visão
-        messages: [
-          {
-            role: "system",
-            content: `Você é um consultor especialista em branding, posicionamento e construção de comunidade. Seu papel é diagnosticar marcas com base na sua essência emocional e ajudar os fundadores a reposicionar sua mensagem, promessa e presença de forma clara, humana e envolvente — fazendo com que os consumidores enxerguem a marca com o mesmo brilho que o criador enxergou ao fundá-la.
-
-**SEU OBJETIVO PRINCIPAL**: Realizar uma análise de marca profunda e personalizada que revele insights valiosos sobre a marca do cliente, oferecendo direcionamentos claros e práticos.
-
-**ESTRUTURA DO DIAGNÓSTICO**: 
-
-🔥 **SUMÁRIO EXECUTIVO (2-3 linhas)**
-- Síntese da situação atual da marca em uma linguagem direta e empática
-
-🎯 **ANÁLISE DE POSICIONAMENTO**
-- **Propósito Central**: O que realmente move esta marca
-- **Diferencial Único**: O que a torna especial no mercado
-- **Personalidade da Marca**: Como ela se manifesta no mundo
-
-👥 **ANÁLISE DE PÚBLICO**
-- **Perfil do Cliente Ideal vs. Atual**: Gaps identificados
-- **Conexão Emocional**: Como a marca se conecta com as pessoas
-- **Oportunidades de Engajamento**: Onde pode melhorar
-
-📊 **DIAGNÓSTICO ESTRATÉGICO**
-- **Pontos Fortes**: O que já funciona bem
-- **Desafios Identificados**: O que precisa ser trabalhado
-- **Lacunas de Comunicação**: Onde a mensagem pode ser mais clara
-
-🚀 **RECOMENDAÇÕES ESTRATÉGICAS**
-- 3-4 ações práticas e específicas para fortalecer a marca
-- Sugestões de melhorias na comunicação e posicionamento
-- Dicas para melhor conexão com o público-alvo
-
-🏁 **Nota de Clareza & Emoção da Marca: X/100**
-- Justificativa da nota baseada na clareza do posicionamento e força emocional
-
-**INSTRUÇÕES ESPECÍFICAS**:
-- Use uma linguagem acessível, mas profissional
-- Seja específico e prático nas recomendações
-- Demonstre empatia e compreensão pela jornada do empreendedor
-- Quando uma imagem do Instagram for fornecida, analise detalhadamente os elementos visuais, bio, feed e qualquer informação visível para enriquecer o diagnóstico
-- Base sua análise tanto nas respostas quanto nos elementos visuais da imagem (se disponível)
-- Ofereça insights que só um especialista conseguiria identificar
-- Termine sempre com a nota de 0 a 100`
-          },
-          {
-            role: "user",
-            content: messageContent
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.7,
+      // Criar uma thread para o Assistant
+      const thread = await openai.beta.threads.create()
+      
+      // Criar mensagem na thread com o conteúdo
+      await openai.beta.threads.messages.create(thread.id, {
+        role: "user",
+        content: messageContent
       })
 
-      const analysis = completion.choices[0]?.message?.content
+      // Executar o Assistant
+      const run = await openai.beta.threads.runs.create(thread.id, {
+        assistant_id: "asst_m1fio8b1sD3HyVL4KTBwbtzr"
+      })
+
+      // Aguardar a conclusão do run
+      let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+      
+      while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+      }
+
+      if (runStatus.status !== 'completed') {
+        console.error("Assistant run failed:", runStatus.status)
+        return NextResponse.json({ error: "Analysis failed" }, { status: 500 })
+      }
+
+      // Buscar as mensagens da thread
+      const messages = await openai.beta.threads.messages.list(thread.id)
+      
+      // Pegar a última mensagem do assistant
+      const assistantMessage = messages.data.find(msg => msg.role === 'assistant')
+      
+      if (!assistantMessage || !assistantMessage.content || !assistantMessage.content[0]) {
+        console.error("No assistant message found")
+        return NextResponse.json({ error: "No analysis generated" }, { status: 500 })
+      }
+
+      const analysis = (assistantMessage.content[0] as any).text?.value
 
       if (!analysis) {
         console.error("No analysis content received from OpenAI Assistant")
         return NextResponse.json({ error: "No analysis generated" }, { status: 500 })
       }
 
-      // Extrair o score do texto da análise
-      let scoreDiagnostico = null;
-      if (analysis) {
+      // Tentar fazer parse do JSON retornado pela API
+      let parsedAnalysis
+      let scoreDiagnostico = null
+      
+      try {
+        // Limpar possíveis caracteres extras antes/depois do JSON
+        const cleanedAnalysis = analysis.trim().replace(/^```json\s*|\s*```$/g, '')
+        parsedAnalysis = JSON.parse(cleanedAnalysis)
         
-        // Múltiplos padrões para capturar diferentes formatos de score
-        const scorePatterns = [
-          /🏁\s*Nota de Clareza & Emoção da Marca:\s*(\d+)/i,
-          /Nota de Clareza & Emoção da Marca:\s*(\d+)\/100/i,
-          /Nota de Clareza & Emoção da Marca:\s*(\d+)/i,
-          /Nota de Clareza.*?:\s*(\d+)\/100/i,
-          /Nota de Clareza.*?:\s*(\d+)/i,
-          /Score.*?:\s*(\d+)\/100/i,
-          /Score.*?:\s*(\d+)/i,
-          /Pontuação.*?:\s*(\d+)\/100/i,
-          /Pontuação.*?:\s*(\d+)/i,
-          /🏁.*?Nota.*?:\s*(\d+)\/100/i,
-          /🏁.*?Nota.*?:\s*(\d+)/i,
-          /🏁.*?(\d+)\/100/i,
-          /🏁.*?(\d+)/i,
-          /Diagnóstico.*?(\d+)\/100/i,
-          /Diagnóstico.*?(\d+)/i,
-          /Marca:\s*(\d+)\/100/i,
-          /Marca:\s*(\d+)/i,
-          /(\d+)\/100/g, // Padrão mais genérico como fallback
-        ];
+        // Extrair scores do JSON
+        scoreDiagnostico = parsedAnalysis.score_ui?.toString() || parsedAnalysis.score_interno?.toString() || "0"
         
-        for (const pattern of scorePatterns) {
-          const scoreMatch = analysis.match(pattern);
-          
-          if (scoreMatch && scoreMatch[1]) {
-            const extractedScore = parseInt(scoreMatch[1]);
-            
-            // Validar se o score está dentro do range esperado (0-100)
-            if (extractedScore >= 0 && extractedScore <= 100) {
-              scoreDiagnostico = extractedScore.toString();
-              break;
+        console.log("JSON parsed successfully:", parsedAnalysis)
+      } catch (parseError) {
+        console.error("Error parsing JSON from GPT response:", parseError)
+        console.log("Raw response:", analysis)
+        
+        // Fallback: tentar extrair score do texto tradicional
+        const scoreMatch = analysis.match(/(?:Nota|Score).*?(\d+)(?:\/100)?/i)
+        if (scoreMatch && scoreMatch[1]) {
+          const numbers = analysis.match(/\b(\d+)\b/g)
+          if (numbers) {
+            for (const num of numbers) {
+              const number = parseInt(num)
+              if (number >= 30 && number <= 100) {
+                scoreDiagnostico = number.toString()
+                break
+              }
             }
           }
         }
         
-        if (!scoreDiagnostico) {
-          // Tentativa final: procurar por qualquer número/100 no texto
-          const allScores = analysis.match(/(\d+)\/100/g);
-          
-          if (allScores && allScores.length > 0) {
-            // Tentar cada score encontrado
-            for (const scoreText of allScores) {
-              const scoreMatch = scoreText.match(/(\d+)/);
-              if (scoreMatch) {
-                const scoreNumber = parseInt(scoreMatch[1]);
-                
-                if (scoreNumber >= 0 && scoreNumber <= 100) {
-                  scoreDiagnostico = scoreNumber.toString();
-                  break;
-                }
-              }
-            }
-          }
-          
-          // Se ainda não encontrou, tentar buscar números isolados que podem ser scores
-          if (!scoreDiagnostico) {
-            // Buscar números que aparecem sozinhos e podem ser scores
-            const numbersOnly = analysis.match(/\b(\d{1,2})\b/g);
-            
-            if (numbersOnly) {
-              for (const num of numbersOnly) {
-                const number = parseInt(num);
-                if (number >= 30 && number <= 100) { // Range mais realista para scores
-                  scoreDiagnostico = number.toString();
-                  break;
-                }
-              }
-            }
-          }
-          
-          // Se ainda não encontrou, definir um score padrão
-          if (!scoreDiagnostico) {
-            scoreDiagnostico = "0"; // Score padrão quando não conseguir extrair
-          }
-        }
+        // Se não conseguiu fazer parse, manter o formato original
+        parsedAnalysis = null
+        scoreDiagnostico = scoreDiagnostico || "0"
       }
-
+      
       // Atualizar o objeto dbData com o score extraído
-      dbData.scoreDiagnostico = scoreDiagnostico;
+      dbData.scoreDiagnostico = scoreDiagnostico
+      
+      // Salvar a análise no formato apropriado (JSON ou texto)
+      dbData.diagnostico = parsedAnalysis ? JSON.stringify(parsedAnalysis) : analysis
 
       // Salvar no Supabase
       try {
@@ -378,9 +307,11 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json({
-        analysis,
-        idUnico: idUnico, // Inclui o idUnico na resposta para cache no frontend
-        scoreDiagnostico: scoreDiagnostico // Inclui o score extraído na resposta
+        analysis: parsedAnalysis || analysis, // Retorna JSON estruturado se disponível, senão texto original
+        analysisText: analysis, // Mantém o texto original também para compatibilidade
+        parsedAnalysis: parsedAnalysis, // JSON estruturado se disponível
+        idUnico: idUnico,
+        scoreDiagnostico: scoreDiagnostico
       })
     } catch (openaiError: any) {
       console.error("OpenAI API error:", {
