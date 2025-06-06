@@ -5,7 +5,7 @@ import { Pacifico } from "next/font/google"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { BrandplotCache, generateIdUnico } from "@/lib/brandplot-cache"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { ChevronLeft, Upload, Loader2, Home } from "lucide-react"
 
 const pacifico = Pacifico({
@@ -174,6 +174,9 @@ function QuestionStep({
   // Estado para feedback de paste
   const [pasteStatus, setPasteStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
+  // Ref para input file
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // Para o passo de contato, separar resposta em dois campos
   const [contact, setContact] = useState<{ phone: string; email: string }>(() => {
     if (isContactStep && answer) {
@@ -193,8 +196,9 @@ function QuestionStep({
   function isValidPhone(phone: string) {
     return /^(\+?\d{10,15})$/.test(phone.replace(/\D/g, ''))
   }
+  // Agora o celular é obrigatório, e-mail é opcional
   const isContactValid = isContactStep ? (
-    (contact.phone && isValidPhone(contact.phone)) || (contact.email && isValidEmail(contact.email))
+    contact.phone && isValidPhone(contact.phone)
   ) : true
 
   // Atualiza o answer do step pai
@@ -205,54 +209,37 @@ function QuestionStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contact])
 
-  // Funcionalidade de paste para imagens
-  useEffect(() => {
-    if (!isFileUpload) return
-
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items
-      if (!items) return
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        if (item.type.indexOf('image') !== -1) {
-          const blob = item.getAsFile()
-          if (blob) {
-            // Verifica o tamanho do arquivo (10MB = 10 * 1024 * 1024 bytes)
-            if (blob.size > 10 * 1024 * 1024) {
-              setPasteStatus('error')
-              setTimeout(() => setPasteStatus('idle'), 3000)
-              return
-            }
-            
-            // Converter imagem para base64
-            const reader = new FileReader()
-            reader.onload = (e) => {
-              const base64 = e.target?.result as string
-              // Salvar tanto o nome quanto o base64
-              const imageData = {
-                name: `imagem-colada-${Date.now()}.${blob.type.split('/')[1] || 'png'}`,
-                base64: base64,
-                type: blob.type
-              }
-              setAnswer(JSON.stringify(imageData))
-              setPasteStatus('success')
-            }
-            reader.readAsDataURL(blob)
-            
-            // Remove o feedback após 2 segundos
-            setTimeout(() => setPasteStatus('idle'), 2000)
-            
-            console.log('Imagem colada:', blob)
-          }
-          break
-        }
-      }
+  // Handler para clique na área de upload
+  const handleUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '' // Limpa seleção anterior
+      fileInputRef.current.click()
     }
+  }
 
-    document.addEventListener('paste', handlePaste)
-    return () => document.removeEventListener('paste', handlePaste)
-  }, [isFileUpload, setAnswer])
+  // Handler para upload de arquivo
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      setPasteStatus('error')
+      setTimeout(() => setPasteStatus('idle'), 3000)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string
+      const imageData = {
+        name: file.name,
+        base64: base64,
+        type: file.type
+      }
+      setAnswer(JSON.stringify(imageData))
+      setPasteStatus('success')
+      setTimeout(() => setPasteStatus('idle'), 2000)
+    }
+    reader.readAsDataURL(file)
+  }
 
   return (
     <motion.div
@@ -317,7 +304,18 @@ function QuestionStep({
           >
             {isFileUpload ? (
               <div className="relative">
-                <div className="w-full min-h-[120px] border-2 border-dashed border-white/20 rounded-2xl bg-white/[0.03] backdrop-blur-sm flex flex-col items-center justify-center p-8 transition-all duration-300 hover:border-[#c8b79e]/40 hover:bg-white/[0.05] group cursor-pointer">
+                {/* Input file escondido */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+                <div
+                  className="w-full min-h-[120px] border-2 border-dashed border-white/20 rounded-2xl bg-white/[0.03] backdrop-blur-sm flex flex-col items-center justify-center p-8 transition-all duration-300 hover:border-[#c8b79e]/40 hover:bg-white/[0.05] group cursor-pointer"
+                  onClick={handleUploadClick}
+                >
                   <Upload className="w-8 h-8 text-white/40 mb-3 group-hover:text-[#c8b79e]/60 transition-colors" />
                   <p className="text-white/60 text-center mb-2">
                     Clique para selecionar ou arraste uma imagem
@@ -326,10 +324,10 @@ function QuestionStep({
                     Cole uma imagem com Ctrl+V ou faça upload
                   </p>
                   {pasteStatus === 'success' && (
-                    <p className="text-green-400 text-sm mt-2">✓ Imagem colada com sucesso!</p>
+                    <p className="text-green-400 text-sm mt-2">✓ Imagem anexada com sucesso!</p>
                   )}
                   {pasteStatus === 'error' && (
-                    <p className="text-red-400 text-sm mt-2">Erro ao colar imagem. Tente novamente.</p>
+                    <p className="text-red-400 text-sm mt-2">Erro ao anexar imagem. Tente novamente.</p>
                   )}
                 </div>
                 {answer && (
@@ -345,8 +343,9 @@ function QuestionStep({
                     type="tel"
                     value={contact.phone}
                     onChange={(e) => setContact(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="(11) 99999-9999"
+                    placeholder="(11) 99999-9999 (obrigatório)"
                     className="w-full px-6 py-4 bg-white/[0.05] border border-white/[0.1] rounded-2xl text-white placeholder-white/40 focus:outline-none focus:border-[#c8b79e]/50 focus:bg-white/[0.08] transition-all duration-300 backdrop-blur-sm"
+                    required
                   />
                 </div>
                 <div className="text-center">
@@ -357,7 +356,7 @@ function QuestionStep({
                     type="email"
                     value={contact.email}
                     onChange={(e) => setContact(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="seu@email.com"
+                    placeholder="seu@email.com (opcional)"
                     className="w-full px-6 py-4 bg-white/[0.05] border border-white/[0.1] rounded-2xl text-white placeholder-white/40 focus:outline-none focus:border-[#c8b79e]/50 focus:bg-white/[0.08] transition-all duration-300 backdrop-blur-sm"
                   />
                 </div>

@@ -185,7 +185,7 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
 
       // Se temos dados estruturados em JSON, usar eles
       if (diagnosticoData) {
-        scoreValue = diagnosticoData.score_ui || diagnosticoData.score_interno || 0
+        scoreValue =  diagnosticoData.score_interno || 0
         finalMarkdownContent = "" // Não usamos markdown para dados estruturados
       } else {
         // Usar lógica antiga para análises em texto

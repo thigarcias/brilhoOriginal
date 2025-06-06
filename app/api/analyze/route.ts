@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
+import { GoogleGenAI } from '@google/genai'
 
 // Função assíncrona para buscar contexto da empresa usando Responses API
 async function fetchCompanyContext(companyName: string, idUnico: string, supabase: any) {
@@ -82,6 +83,62 @@ async function fetchCompanyContext(companyName: string, idUnico: string, supabas
     if (error instanceof Error) {
       console.error("Mensagem do erro:", error.message);
       console.error("Stack trace:", error.stack);
+    }
+  }
+}
+
+/**
+ * Busca contexto da empresa usando Gemini (Google GenAI) com Google Search
+ */
+async function fetchCompanyContextGemini(companyName: string, idUnico: string, supabase: any) {
+  try {
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+    const tools = [{ googleSearch: {} }];
+    const config = {
+      tools,
+      responseMimeType: 'text/plain',
+    };
+    const model = 'gemini-2.5-flash-preview-04-17';
+    const contents = [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: `Você é um especialista em análise de marcas e empresas. Pesquise informações atualizadas sobre a empresa "${companyName}" e crie um relatório de contexto abrangente incluindo:\n\n1. Visão geral da empresa e setor\n2. Posicionamento de marca\n3. Público-alvo\n4. Principais concorrentes\n5. Características do setor\n6. Presença digital\n7. Notícias recentes\n\nImportante: Busque informações reais e atualizadas sobre esta empresa. Se não encontrar informações específicas, forneça uma análise baseada no nome e setor provável.`,
+          },
+        ],
+      },
+    ];
+    const response = await ai.models.generateContentStream({
+      model,
+      config,
+      contents,
+    });
+    let contexto = '';
+    for await (const chunk of response) {
+      contexto += chunk.text;
+    }
+    if (contexto) {
+      // Atualizar o registro no Supabase com o contexto obtido
+      const { error: updateError } = await supabase
+        .from('brandplot')
+        .update({ contexto: contexto })
+        .eq('idUnico', idUnico);
+      if (updateError) {
+        console.error('Erro ao atualizar contexto no Supabase (Gemini):', updateError);
+      } else {
+        console.log('Contexto salvo com sucesso no Supabase (Gemini)');
+      }
+    } else {
+      console.error('Não foi possível extrair o contexto da resposta (Gemini)');
+    }
+  } catch (error) {
+    console.error('Erro na busca de contexto da empresa (Gemini):', error);
+    if (error instanceof Error) {
+      console.error('Mensagem do erro:', error.message);
+      console.error('Stack trace:', error.stack);
     }
   }
 }
@@ -301,8 +358,11 @@ export async function POST(request: Request) {
 
       // Buscar contexto da empresa de forma assíncrona (não bloqueia a resposta)
       if (answers[0]) {
-        fetchCompanyContext(answers[0], idUnico, supabase).catch(error => {
-          console.error("Erro ao buscar contexto da empresa:", error);
+        // fetchCompanyContext(answers[0], idUnico, supabase).catch(error => {
+        //   console.error("Erro ao buscar contexto da empresa:", error);
+        // });
+        fetchCompanyContextGemini(answers[0], idUnico, supabase).catch(error => {
+          console.error("Erro ao buscar contexto da empresa (Gemini):", error);
         });
       }
 
