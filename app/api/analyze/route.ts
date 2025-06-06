@@ -5,19 +5,21 @@ import { createClient } from "@supabase/supabase-js"
 // Função assíncrona para buscar contexto da empresa usando Responses API
 async function fetchCompanyContext(companyName: string, idUnico: string, supabase: any) {
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        tools: [{
-          type: "web_search_preview",
-          search_context_size: "medium" 
-        }],
-        input: `Você é um especialista em análise de marcas e empresas. Pesquise informações atualizadas sobre a empresa "${companyName}" e crie um relatório de contexto abrangente incluindo:
+    // Inicializar cliente OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    console.log(`Buscando contexto para empresa: ${companyName}`);
+
+    // Usar a SDK oficial do OpenAI para Responses API
+    const response = await openai.responses.create({
+      model: "gpt-4.1", // Modelo correto
+      tools: [{
+        type: "web_search_preview",
+        search_context_size: "medium" 
+      }],
+      input: `Você é um especialista em análise de marcas e empresas. Pesquise informações atualizadas sobre a empresa "${companyName}" e crie um relatório de contexto abrangente incluindo:
 
 1. **Visão geral da empresa e setor**: O que a empresa faz, em que setor atua, quando foi fundada
 2. **Posicionamento de marca**: Como ela se posiciona no mercado, missão e valores  
@@ -28,26 +30,23 @@ async function fetchCompanyContext(companyName: string, idUnico: string, supabas
 7. **Notícias recentes**: Novidades, lançamentos, parcerias
 
 **Importante**: Busque informações reais e atualizadas sobre esta empresa. Se não encontrar informações específicas, forneça uma análise baseada no nome e setor provável.`
-      })
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    // Extract content from the correct structure
+    // Extrair o contexto da resposta usando a estrutura correta
     let contexto = null;
-    if (data.output && Array.isArray(data.output)) {
-      // Find the assistant message in the array
-      const assistantMessage = data.output.find((output: any) => 
-        output.role === 'assistant' && output.content && Array.isArray(output.content)
+    
+    // Verificar se existe output_text diretamente na resposta
+    if ((response as any).output_text) {
+      contexto = (response as any).output_text;
+    } else if (response.output && Array.isArray(response.output)) {
+      // Procurar por mensagem do assistente no array de output
+      const messageOutput = response.output.find((output: any) => 
+        output.type === 'message' && output.role === 'assistant'
       );
       
-      if (assistantMessage && assistantMessage.content) {
-        // Get the text content from the assistant message
-        const textContent = assistantMessage.content.find((content: any) => 
+      if (messageOutput && (messageOutput as any).content && Array.isArray((messageOutput as any).content)) {
+        // Encontrar o conteúdo de texto na mensagem
+        const textContent = (messageOutput as any).content.find((content: any) => 
           content.type === 'output_text' && content.text
         );
         
@@ -58,6 +57,8 @@ async function fetchCompanyContext(companyName: string, idUnico: string, supabas
     }
     
     if (contexto) {
+      console.log("Contexto extraído com sucesso, atualizando no Supabase...");
+      
       // Atualizar o registro no Supabase com o contexto obtido
       const { error: updateError } = await supabase
         .from("brandplot")
@@ -66,11 +67,22 @@ async function fetchCompanyContext(companyName: string, idUnico: string, supabas
 
       if (updateError) {
         console.error("Erro ao atualizar contexto no Supabase:", updateError);
+      } else {
+        console.log("Contexto salvo com sucesso no Supabase");
       }
+    } else {
+      console.error("Não foi possível extrair o contexto da resposta");
+      console.log("Estrutura da resposta:", JSON.stringify(response, null, 2));
     }
 
   } catch (error) {
     console.error("Erro na busca de contexto da empresa:", error);
+    
+    // Log mais detalhado do erro
+    if (error instanceof Error) {
+      console.error("Mensagem do erro:", error.message);
+      console.error("Stack trace:", error.stack);
+    }
   }
 }
 
@@ -162,13 +174,10 @@ export async function POST(request: Request) {
       contexto: null as string | null
     }
     try {
-      // Criar uma thread
-      const thread = await openai.beta.threads.create()
-
-      // Criar mensagem na thread
-      const message = await openai.beta.threads.messages.create(thread.id, {
-        role: "user",
-        content: `Analise esta marca com base nas seguintes respostas:
+      // Preparar conteúdo da mensagem para Chat Completions (suporta visão)
+      let messageContent: any[] = [{
+        type: "text",
+        text: `Analise esta marca com base nas seguintes respostas:
 
 1. Nome da empresa: ${answers[0] || "Não informado"}
 2. O que te motivou a criar essa marca? ${answers[1] || "Não informado"}
@@ -177,38 +186,91 @@ export async function POST(request: Request) {
 5. Quem é o cliente ideal para você? ${answers[4] || "Não informado"}
 6. Hoje, quem mais compra de você? (é o público ideal?) ${answers[5] || "Não informado"}
 7. Como você gostaria que sua marca fosse percebida? ${answers[6] || "Não informado"}
-8. Em uma frase: \"Minha marca existe para que as pessoas possam finalmente __________.\" ${answers[7] || "Não informado"}
-9. Instagram screenshot foi fornecido: ${answers[8] ? "Sim" : "Não"}
+8. Em uma frase: "Minha marca existe para que as pessoas possam finalmente __________." ${answers[7] || "Não informado"}
 10. Contato informado: Celular: ${contact.phone || "Não informado"}, E-mail: ${contact.email || "Não informado"}`
+      }]
+
+      // Adicionar imagem se fornecida
+      if (answers[8]) {
+        try {
+          const imageData = JSON.parse(answers[8])
+          if (imageData.base64 && imageData.type) {
+            messageContent.push({
+              type: "image_url",
+              image_url: {
+                url: imageData.base64,
+                detail: "high"
+              }
+            })
+            
+            // Adicionar contexto sobre a imagem no texto
+            messageContent[0].text += `\n\n9. ANÁLISE DO INSTAGRAM: Analise detalhadamente a imagem do perfil do Instagram fornecida. Examine a bio, feed visual, destaques e qualquer elemento visível para entender melhor o posicionamento atual da marca e como ela se apresenta nas redes sociais.`
+          }
+        } catch (error) {
+          console.log("Erro ao processar imagem, continuando sem ela:", error)
+          messageContent[0].text += `\n\n9. Instagram screenshot: Fornecido mas não pôde ser processado`
+        }
+      } else {
+        messageContent[0].text += `\n\n9. Instagram screenshot: Não fornecido`
+      }
+
+      // Usar Chat Completions com GPT-4 Vision para suportar análise de imagens
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // Modelo que suporta visão
+        messages: [
+          {
+            role: "system",
+            content: `Você é um consultor especialista em branding, posicionamento e construção de comunidade. Seu papel é diagnosticar marcas com base na sua essência emocional e ajudar os fundadores a reposicionar sua mensagem, promessa e presença de forma clara, humana e envolvente — fazendo com que os consumidores enxerguem a marca com o mesmo brilho que o criador enxergou ao fundá-la.
+
+**SEU OBJETIVO PRINCIPAL**: Realizar uma análise de marca profunda e personalizada que revele insights valiosos sobre a marca do cliente, oferecendo direcionamentos claros e práticos.
+
+**ESTRUTURA DO DIAGNÓSTICO**: 
+
+🔥 **SUMÁRIO EXECUTIVO (2-3 linhas)**
+- Síntese da situação atual da marca em uma linguagem direta e empática
+
+🎯 **ANÁLISE DE POSICIONAMENTO**
+- **Propósito Central**: O que realmente move esta marca
+- **Diferencial Único**: O que a torna especial no mercado
+- **Personalidade da Marca**: Como ela se manifesta no mundo
+
+👥 **ANÁLISE DE PÚBLICO**
+- **Perfil do Cliente Ideal vs. Atual**: Gaps identificados
+- **Conexão Emocional**: Como a marca se conecta com as pessoas
+- **Oportunidades de Engajamento**: Onde pode melhorar
+
+📊 **DIAGNÓSTICO ESTRATÉGICO**
+- **Pontos Fortes**: O que já funciona bem
+- **Desafios Identificados**: O que precisa ser trabalhado
+- **Lacunas de Comunicação**: Onde a mensagem pode ser mais clara
+
+🚀 **RECOMENDAÇÕES ESTRATÉGICAS**
+- 3-4 ações práticas e específicas para fortalecer a marca
+- Sugestões de melhorias na comunicação e posicionamento
+- Dicas para melhor conexão com o público-alvo
+
+🏁 **Nota de Clareza & Emoção da Marca: X/100**
+- Justificativa da nota baseada na clareza do posicionamento e força emocional
+
+**INSTRUÇÕES ESPECÍFICAS**:
+- Use uma linguagem acessível, mas profissional
+- Seja específico e prático nas recomendações
+- Demonstre empatia e compreensão pela jornada do empreendedor
+- Quando uma imagem do Instagram for fornecida, analise detalhadamente os elementos visuais, bio, feed e qualquer informação visível para enriquecer o diagnóstico
+- Base sua análise tanto nas respostas quanto nos elementos visuais da imagem (se disponível)
+- Ofereça insights que só um especialista conseguiria identificar
+- Termine sempre com a nota de 0 a 100`
+          },
+          {
+            role: "user",
+            content: messageContent
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.7,
       })
 
-      // Executar o Assistant
-      const run = await openai.beta.threads.runs.create(thread.id, {
-        assistant_id: "asst_m1fio8b1sD3HyVL4KTBwbtzr"
-      })
-
-      // Aguardar a conclusão do run
-      let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
-
-      while (runStatus.status === "queued" || runStatus.status === "in_progress") {
-        await new Promise(resolve => setTimeout(resolve, 1000)) // Aguarda 1 segundo
-        runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
-      }
-
-      if (runStatus.status !== "completed") {
-        console.error("Run não completou com sucesso:", runStatus.status)
-        throw new Error(`Assistant run failed with status: ${runStatus.status}`)
-      }
-
-      // Recuperar as mensagens da thread
-      const messages = await openai.beta.threads.messages.list(thread.id)
-      const assistantMessage = messages.data.find(msg => msg.role === "assistant")
-
-      if (!assistantMessage || !assistantMessage.content[0] || assistantMessage.content[0].type !== "text") {
-        throw new Error("No valid response from assistant")
-      }
-
-      const analysis = assistantMessage.content[0].text.value
+      const analysis = completion.choices[0]?.message?.content
 
       if (!analysis) {
         console.error("No analysis content received from OpenAI Assistant")

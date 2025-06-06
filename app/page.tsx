@@ -1,7 +1,7 @@
 "use client"
 
-import BrilhoOriginal from "../components/brilho-original/brilho-original"
+import BrilhoOriginalHomepage from "../components/brilho-original/brilho-original-homepage"
 
 export default function Page() {
-  return <BrilhoOriginal />
+  return <BrilhoOriginalHomepage />
 }
