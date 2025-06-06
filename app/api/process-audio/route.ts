@@ -29,10 +29,10 @@ Quando o usuário responder, você deve:
 2. **Entender a essência da resposta e o que ela revela ou esconde**  
 3. **Gerar uma pergunta provocativa em cima do que foi dito**, como um consultor que quer explorar mais  
    - Pode usar frases como:  
-     • “O que você me falou me faz pensar em tal coisa. Já parou pra pensar nisso?”  
-     • “Você disse [X]. Isso significa que sua marca talvez esteja mais próxima de [Y] do que você imagina?”  
-     • “Isso soa como [Z]… mas será que é isso mesmo?”  
-4. **Não pergunte ‘quer adicionar algo?’ ou ‘posso seguir?’**. Isso é superficial. Em vez disso, **puxe o usuário para o próximo nível da conversa**.
+     • "O que você me falou me faz pensar em tal coisa. Já parou pra pensar nisso?"  
+     • "Você disse [X]. Isso significa que sua marca talvez esteja mais próxima de [Y] do que você imagina?"  
+     • "Isso soa como [Z]… mas será que é isso mesmo?"  
+4. **Não pergunte 'quer adicionar algo?' ou 'posso seguir?'**. Isso é superficial. Em vez disso, **puxe o usuário para o próximo nível da conversa**.
 
 Apenas quando sentir que a conversa sobre aquela pergunta **chegou num ponto de clareza e profundidade suficiente**, avance para a próxima pergunta da lista.
 
@@ -45,7 +45,7 @@ Lista de perguntas:
 5. Quem é o cliente ideal para você?  
 6. Hoje, quem mais compra de você? (é o público ideal?)  
 7. Como você gostaria que sua marca fosse percebida?  
-8. Em uma frase: “Minha marca existe para que as pessoas possam finalmente __________.”  
+8. Em uma frase: "Minha marca existe para que as pessoas possam finalmente __________."  
 9. Descreva ou envie o print da bio do Instagram da marca (com feed e destaques visíveis).
 
 ⚠️ Nunca pule etapas. Nunca agrupe perguntas. Nunca atue como robô.
@@ -76,14 +76,13 @@ Depois de receber todas as respostas:
 
 🎯 Finalize com:
 
-“Você gostaria de enviar tudo isso que a gente conversou aqui para um dos nossos profissionais? Ele pode conversar com você, entender melhor o contexto e ajudar a aprofundar esse reposicionamento da marca.”
+"Você gostaria de enviar tudo isso que a gente conversou aqui para um dos nossos profissionais? Ele pode conversar com você, entender melhor o contexto e ajudar a aprofundar esse reposicionamento da marca."
 
 Você é um parceiro de raciocínio — que provoca com empatia e mostra ao usuário algo que ele ainda não tinha verbalizado sobre a própria marca.
 `
 
 export async function POST(request: Request) {
   try {
-    // lê o FormData e extrai o blob de áudio
     const formData = await request.formData()
     const audioBlob = formData.get('audio')
     if (!(audioBlob instanceof Blob)) {
@@ -98,12 +97,17 @@ export async function POST(request: Request) {
       language: 'pt'
     })
 
+    // armazena a transcrição
+    const conversationHistory = request.headers.get('x-conversation-history')
+    const history = conversationHistory ? JSON.parse(conversationHistory) : []
+    history.push({ role: 'user', content: transcription.text })
+
     // inicia o chat em modo streaming
     const chatStream = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: transcription.text }
+        ...history
       ],
       temperature: 0.7,
       max_tokens: 500,
@@ -113,7 +117,10 @@ export async function POST(request: Request) {
     // converte o chatStream em ReadableStream e retorna para o cliente
     const stream = chatStream as unknown as ReadableStream<Uint8Array>;
     return new NextResponse(stream, {
-      headers: { 'Content-Type': 'text/event-stream' }
+      headers: { 
+        'Content-Type': 'text/event-stream',
+        'x-conversation-history': JSON.stringify(history)
+      }
     })
 
   } catch (error) {

@@ -33,11 +33,13 @@ export default function BrilhoOriginalHomepage({
   badge?: string
 }) {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<"branding" | "score" | "insights">("branding")
 
   const startSectionRef = useRef<HTMLDivElement>(null)
   const benefitsSectionRef = useRef<HTMLDivElement>(null)
   const processSectionRef = useRef<HTMLDivElement>(null)
   const faqSectionRef = useRef<HTMLDivElement>(null)
+  const previewSectionRef = useRef<HTMLDivElement>(null)
 
   const fadeUpVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -172,6 +174,12 @@ export default function BrilhoOriginalHomepage({
                 className="text-white/60 hover:text-white transition-colors text-sm"
               >
                 Como Funciona
+              </button>
+              <button
+                onClick={() => scrollToSection(previewSectionRef)}
+                className="text-white/60 hover:text-white transition-colors text-sm"
+              >
+                Prévia
               </button>
               <button
                 onClick={() => scrollToSection(faqSectionRef)}
@@ -473,30 +481,163 @@ export default function BrilhoOriginalHomepage({
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section ref={startSectionRef} className="py-16 md:py-24 relative">
+        {/* Preview Section */}
+        <section ref={previewSectionRef} className="py-16 md:py-24 relative">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="max-w-4xl mx-auto text-center">
+            <div className="text-center mb-12 md:mb-16">
+              <span className="inline-block px-3 py-1 rounded-full bg-[#c8b79e]/10 text-[#c8b79e] text-sm font-medium mb-4">
+                Prévia do Diagnóstico
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Veja o que você vai receber
+              </h2>
+              <p className="text-white/60 max-w-2xl mx-auto">
+                Seu diagnóstico personalizado inclui análise profunda, pontuação e insights acionáveis para transformar sua marca.
+              </p>
+            </div>
+
+            <div className="flex justify-center">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
                 viewport={{ once: true }}
-                className="bg-gradient-to-r from-[#c8b79e]/10 to-[#b09e85]/10 backdrop-blur-sm border border-[#c8b79e]/20 rounded-3xl p-8 md:p-12"
+                className="bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-12 shadow-xl w-full max-w-3xl mx-auto"
               >
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-                  Pronto para transformar sua marca?
-                </h2>
-                <p className="text-white/60 text-lg mb-8 max-w-2xl mx-auto">
-                  Milhares de empreendedores já descobriram o verdadeiro potencial de suas marcas. Agora é a sua vez.
-                </p>
-                <button
-                  onClick={handleStart}
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
-                >
-                  <span className="text-lg">Fazer Diagnóstico Gratuito</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
+                      <Image
+                        src="/images/brandplot-logo.png"
+                        alt="BrandPlot"
+                        width={16}
+                        height={16}
+                        className="rounded-full"
+                      />
+                    </div>
+                    <span className="text-sm text-white/60">Diagnóstico Completo</span>
+                  </div>
+
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setActiveTab("branding")}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "branding" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
+                    >
+                      Análise
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("score")}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "score" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
+                    >
+                      Score
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("insights")}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "insights" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
+                    >
+                      Ações
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 min-h-[320px]">
+                  {activeTab === "branding" && (
+                    <div className="space-y-4">
+                      <div className="text-center mb-6">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-4">
+                          <span className="text-sm text-white/60">
+                            Diagnóstico de <span className="text-[#c8b79e] font-medium">Sua Empresa</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <h3 className="text-lg font-bold text-white mb-3">🎯 Essência da Marca</h3>
+                      <p className="text-white/70 text-sm leading-relaxed">
+                        Sua marca nasceu de uma motivação genuína e possui elementos distintivos interessantes. A
+                        essência está presente, mas precisa ser comunicada de forma mais clara e consistente.
+                      </p>
+
+                      <h3 className="text-lg font-bold text-white mb-3 mt-6">🧬 Promessa Central</h3>
+                      <div className="bg-white/[0.05] border border-white/[0.1] rounded-lg p-4">
+                        <p className="text-white/80 text-sm italic">
+                          "Sua marca existe para transformar a experiência do cliente de forma única e memorável."
+                        </p>
+                      </div>
+                      <p className="text-white/70 text-sm mt-2">
+                        A promessa está bem definida conceitualmente, mas precisa ser traduzida em benefícios tangíveis.
+                      </p>
+                    </div>
+                  )}
+
+                  {activeTab === "score" && (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <div className="relative w-32 h-32 flex items-center justify-center mb-6">
+                        <svg className="w-full h-full absolute transform -rotate-90" viewBox="0 0 100 100">
+                          <circle cx="50" cy="50" r="45" fill="none" stroke="#2a2520" strokeWidth="8" />
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="none"
+                            stroke="#c8b79e"
+                            strokeWidth="8"
+                            strokeDasharray="283"
+                            strokeDashoffset="81"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="text-center">
+                          <span className="text-4xl font-bold text-[#c8b79e]">72</span>
+                          <div className="text-white/60 text-sm font-medium">/100</div>
+                        </div>
+                      </div>
+
+                      <h3 className="text-xl font-bold text-white mb-4">Nota de Clareza & Emoção</h3>
+                      <p className="text-white/70 text-sm text-center max-w-md leading-relaxed">
+                        Sua marca demonstra potencial sólido, mas há oportunidades significativas para maior clareza na comunicação e conexão emocional mais profunda.
+                      </p>
+                    </div>
+                  )}
+
+                  {activeTab === "insights" && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold text-white mb-4">🚀 Próximos Passos</h3>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3 p-3 bg-white/[0.03] rounded-lg">
+                          <div className="w-2 h-2 rounded-full bg-[#c8b79e] mt-2 shrink-0"></div>
+                          <div>
+                            <p className="text-white font-medium text-sm">Refinar Posicionamento</p>
+                            <p className="text-white/60 text-xs">Definir claramente o que torna sua marca única</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 p-3 bg-white/[0.03] rounded-lg">
+                          <div className="w-2 h-2 rounded-full bg-[#c8b79e] mt-2 shrink-0"></div>
+                          <div>
+                            <p className="text-white font-medium text-sm">Fortalecer Identidade Visual</p>
+                            <p className="text-white/60 text-xs">Alinhar elementos visuais com a personalidade</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 p-3 bg-white/[0.03] rounded-lg">
+                          <div className="w-2 h-2 rounded-full bg-[#c8b79e] mt-2 shrink-0"></div>
+                          <div>
+                            <p className="text-white font-medium text-sm">Criar Consistência</p>
+                            <p className="text-white/60 text-xs">Padronizar comunicação em todos os pontos</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 p-4 bg-gradient-to-r from-[#c8b79e]/10 to-[#b09e85]/10 border border-[#c8b79e]/20 rounded-lg">
+                        <p className="text-white/80 text-sm text-center">
+                          <strong className="text-[#c8b79e]">Pronto para implementar?</strong><br />
+                          Fale com um especialista para acelerar sua transformação.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </motion.div>
             </div>
           </div>
