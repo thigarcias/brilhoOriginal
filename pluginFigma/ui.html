@@ -978,22 +978,29 @@
           }
           
           const blocos = json.resultado?.blocos || [];
+          const textoCompleto = json.resultado?.textoCompleto || "";
           console.log('🎯 Plugin: Blocos extraídos', blocos.length, blocos);
+          console.log('📋 Plugin: Texto completo da API:', textoCompleto);
 
           if (blocos.length) {
             console.log('✅ Plugin: Exibindo preview com', blocos.length, 'blocos');
             const preview = document.getElementById("preview-ia");
-            preview.innerHTML = blocos.map((b, i) => `<div><b>${b}</b></div>`).join("");
+            preview.innerHTML = blocos.map((b, i) => `<div><b>texto ${i + 1} - ${b}</b></div>`).join("");
             preview.style.display = "block";
 
             const aplicarBtn = document.getElementById("aplicar-ia");
             aplicarBtn.style.display = "block";
 
             aplicarBtn.onclick = () => {
+  // Usar o textoCompleto que já vem formatado da API
+  const conteudoFormatado = textoCompleto || blocos.map((texto, index) => `texto ${index + 1} - ${texto}`).join("\n");
+  console.log('📝 Plugin: Conteúdo que será aplicado:', conteudoFormatado);
+  console.log('📋 Plugin: Blocos originais:', blocos);
+  
   parent.postMessage({
     pluginMessage: {
       type: "apply-text",
-      content: blocos.join("\n"),
+      content: conteudoFormatado,
       options: { onlySelected: false }
     }
   }, "*");
@@ -1006,7 +1013,9 @@
     btnEstilo.style.backgroundColor = "#d2a95b";
     btnEstilo.style.color = "#000";
     btnEstilo.style.fontWeight = "bold";
-    btnEstilo.onclick = () => showCustomizationStep(blocos);
+    // Passar os blocos já formatados para a customização
+    const blocosFormatados = textoCompleto ? textoCompleto.split('\n') : blocos.map((texto, index) => `texto ${index + 1} - ${texto}`);
+    btnEstilo.onclick = () => showCustomizationStep(blocosFormatados);
     aplicarBtn.insertAdjacentElement("afterend", btnEstilo);
   }
 };
@@ -1175,7 +1184,7 @@
         parent.postMessage({
           pluginMessage: {
             type: "apply-text",
-            content: blocos.map((t, j) => `texto ${j + 1} - ${t}`).join("\n"),
+            content: blocos.map((texto, index) => `texto ${index + 1} - ${texto}`).join("\n"),
             options: {
               onlySelected: onlySelected.checked
             }
@@ -1224,7 +1233,7 @@
   parent.postMessage({
     pluginMessage: {
       type: "apply-text",
-      content: blocosDetectados.map((t, i) => `texto ${i + 1} - ${t}`).join("\n"),
+      content: blocosDetectados.map((texto, index) => `texto ${index + 1} - ${texto}`).join("\n"),
       options: {
         onlySelected: onlySelected.checked
       }
@@ -1254,55 +1263,53 @@ function showCustomizationStep(blocos) {
   const customizationHTML = `
     <h1>Customizar Blocos</h1>
 
-    <label for="frame-mae">Selecionar frame principal</label>
-    <select id="frame-mae" style="width:100%;margin-bottom:6px;padding:8px;border-radius:8px;border:1px solid #ccc;background:#fff;">
+    <label for="frame-mae" style="color: #fff;">Selecionar frame principal</label>
+    <select id="frame-mae" style="width:100%;margin-bottom:6px;padding:8px;border-radius:8px;border:1px solid rgba(200, 183, 158, 0.3);background:rgba(26, 24, 20, 0.6);color:#fff;">
       <option value="">Carregando...</option>
     </select>
 
-    <label for="frame-filho">Selecionar frame interno para aplicar fundo</label>
-    <select id="frame-filho" style="width:100%;margin-bottom:16px;padding:8px;border-radius:8px;border:1px solid #ccc;background:#fff;">
+    <label for="frame-filho" style="color: #fff;">Selecionar frame interno para aplicar fundo</label>
+    <select id="frame-filho" style="width:100%;margin-bottom:16px;padding:8px;border-radius:8px;border:1px solid rgba(200, 183, 158, 0.3);background:rgba(26, 24, 20, 0.6);color:#fff;">
       <option value="">Selecione um frame principal acima</option>
     </select>
 
     <div style="margin-bottom: 12px;">
-  <label for="color-texto" style="display: block; margin-bottom: 6px;">Cor do texto <span style="opacity: .6">(clique para escolher)</span></label>
+  <label for="color-texto" style="display: block; margin-bottom: 6px; color: #fff;">Cor do texto <span style="opacity: .6">(clique para escolher)</span></label>
   <div style="display: flex; align-items: center; gap: 8px;">
-    
-    <input type="color" id="color-texto" value="#ffffff" style="flex-grow: 1; height: 38px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer;" />
-<button id="limpar-cor-texto" title="Limpar cor" style="margin-top:-1px; width: 40px; height: 38px; border-radius: 8px; background: #fefaf7; border: 1px solid #ccc; color: #6B3E26; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center;">×</button>
+    <input type="color" id="color-texto" value="#000000" style="flex-grow: 1; height: 38px; border-radius: 8px; border: 1px solid rgba(200, 183, 158, 0.3); background: rgba(26, 24, 20, 0.6); cursor: pointer;" />
+    <button id="limpar-cor-texto" title="Limpar cor" style="margin-top:-1px; width: 40px; height: 38px; border-radius: 8px; background: rgba(200, 183, 158, 0.2); border: 1px solid rgba(200, 183, 158, 0.3); color: #fff; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center;">×</button>
   </div>
 </div>
 
     
-    <label>Fonte</label>
-<input id="font-family" list="font-list" placeholder="Digite ou selecione..." style="width:100%;margin-bottom:6px;padding:8px;border-radius:8px;border:1px solid #ccc;background:#fff;" />
-<datalist id="font-list"></datalist>
+    <label style="color: #fff;">Fonte</label>
+    <select id="font-family" style="width:100%;margin-bottom:6px;padding:8px;border-radius:8px;border:1px solid rgba(200, 183, 158, 0.3);background:rgba(26, 24, 20, 0.6);color:#fff;">
+      <option value="">Carregando fontes do Figma...</option>
     </select>
 
-    <label>Peso</label>
-    <select id="font-weight" style="width:100%;margin-bottom:6px;padding:8px;border-radius:8px;border:1px solid #ccc;background:#fff;">
-      <option>Regular</option>
-      <option>SemiBold</option>
-      <option>Bold</option>
+    <label style="color: #fff;">Peso</label>
+    <select id="font-weight" style="width:100%;margin-bottom:6px;padding:8px;border-radius:8px;border:1px solid rgba(200, 183, 158, 0.3);background:rgba(26, 24, 20, 0.6);color:#fff;">
+      <option value="Regular">Regular</option>
+      <option value="SemiBold" selected>SemiBold</option>
+      <option value="Bold">Bold</option>
     </select>
 
-    <label>Tamanho</label>
-    <input type="number" id="font-size" value="75" style="width:100%;margin-bottom:14px;padding:8px;border-radius:8px;border:1px solid #ddd;" />
+    <label style="color: #fff;">Tamanho</label>
+    <input type="number" id="font-size" value="75" style="width:100%;margin-bottom:14px;padding:8px;border-radius:8px;border:1px solid rgba(200, 183, 158, 0.3);background:rgba(26, 24, 20, 0.6);color:#fff;" />
 
     <div style="margin-bottom: 12px;">
-  <label for="color-fundo" style="display: block; margin-bottom: 6px;">Cor de fundo <span style="opacity: .6">(clique para escolher)</span></label>
+  <label for="color-fundo" style="display: block; margin-bottom: 6px; color: #fff;">Cor de fundo <span style="opacity: .6">(clique para escolher)</span></label>
   <div style="display: flex; align-items: center; gap: 8px;">
-<input type="color" id="color-fundo" value="#ffffff" style="flex-grow: 1; height: 38px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer;" />
-    <button id="limpar-cor-fundo" title="Limpar cor" style="margin-top:-1px; width: 40px; height: 38px; border-radius: 8px; background: #fefaf7; border: 1px solid #ccc; color: #6B3E26; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center;">×</button>
-    
+    <input type="color" id="color-fundo" value="#ffffff" style="flex-grow: 1; height: 38px; border-radius: 8px; border: 1px solid rgba(200, 183, 158, 0.3); background: rgba(26, 24, 20, 0.6); cursor: pointer;" />
+    <button id="limpar-cor-fundo" title="Limpar cor" style="margin-top:-1px; width: 40px; height: 38px; border-radius: 8px; background: rgba(200, 183, 158, 0.2); border: 1px solid rgba(200, 183, 158, 0.3); color: #fff; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center;">×</button>
   </div>
 </div>
 
 
 
 
-    <label for="image-upload">Substituir imagens</label>
-    <div id="image-dropzone" style="border:2px dashed #6e4b3a;border-radius:8px;background:#fff8ed;text-align:center;padding:16px;color:#6e4b3a;cursor:pointer;margin-bottom:12px;">
+    <label for="image-upload" style="color: #fff;">Substituir imagens</label>
+    <div id="image-dropzone" style="border:2px dashed rgba(200, 183, 158, 0.4);border-radius:8px;background:rgba(26, 24, 20, 0.4);text-align:center;padding:16px;color:#fff;cursor:pointer;margin-bottom:12px;">
       📁 Subir imagens (arraste ou clique)
       <input id="image-upload" type="file" multiple accept="image/*" style="display:none;" />
     </div>
@@ -1312,38 +1319,25 @@ function showCustomizationStep(blocos) {
   `;
 
   step2.innerHTML = customizationHTML;
-const btnLimparTexto = document.getElementById("limpar-cor-texto");
-const inputTexto = document.getElementById("color-texto");
-btnLimparTexto.onclick = () => {
-  inputTexto.value = "#ffffff";
-  inputTexto.style.backgroundColor = "#fefaf7";
-  inputTexto.style.border = "1px dashed #ccc";
-  inputTexto.dataset.limpo = "true";
-};
-inputTexto.oninput = () => {
-  inputTexto.style.backgroundColor = "";
-  inputTexto.style.border = "1px solid #ccc";
-  inputTexto.dataset.limpo = "";
-};
+  // Configurar botões de limpeza
+  const btnLimparTexto = document.getElementById("limpar-cor-texto");
+  const inputTexto = document.getElementById("color-texto");
+  btnLimparTexto.onclick = () => {
+    inputTexto.value = "#000000";
+  };
 
-const btnLimparFundo = document.getElementById("limpar-cor-fundo");
-const inputFundo = document.getElementById("color-fundo");
-btnLimparFundo.onclick = () => {
-  inputFundo.value = "#ffffff";
-  inputFundo.style.backgroundColor = "#fefaf7";
-  inputFundo.style.border = "1px dashed #ccc";
-  inputFundo.dataset.limpo = "true";
-};
-inputFundo.oninput = () => {
-  inputFundo.style.backgroundColor = "";
-  inputFundo.style.border = "1px solid #ccc";
-  inputFundo.dataset.limpo = "";
-};
+  const btnLimparFundo = document.getElementById("limpar-cor-fundo");
+  const inputFundo = document.getElementById("color-fundo");
+  btnLimparFundo.onclick = () => {
+    inputFundo.value = "#ffffff";
+  };
   step2.classList.add("active");
   step1.classList.remove("active");
   voltarStep.style.display = "block";
 
+  // Solicita frames e fontes do Figma
   parent.postMessage({ pluginMessage: { type: "get-frames-mae" } }, "*");
+  parent.postMessage({ pluginMessage: { type: "get-fonts" } }, "*");
 
   const dropzone = document.getElementById("image-dropzone");
   const inputFile = document.getElementById("image-upload");
@@ -1368,11 +1362,12 @@ inputFile.onchange = () => {
   window.onmessage = (event) => {
     const msg = event.data.pluginMessage;
 
-if (msg?.type === "font-list") {
-  const fontList = document.getElementById("font-list");
-fontList.innerHTML = msg.fonts.map(f => `<option value="${f}">`).join("");
-}
-    if (msg?.type === "frames-mae-list") {
+    if (msg?.type === "font-list") {
+      const fontSelect = document.getElementById("font-family");
+      fontSelect.innerHTML = 
+        `<option value="">Selecione uma fonte...</option>` +
+        msg.fonts.map(font => `<option value="${font}" ${font === 'Inter' ? 'selected' : ''}>${font}</option>`).join("");
+    } else if (msg?.type === "frames-mae-list") {
       const frameMaeSelect = document.getElementById("frame-mae");
       frameMaeSelect.innerHTML =
         `<option value="">Selecione...</option>` +
@@ -1392,6 +1387,8 @@ fontList.innerHTML = msg.fonts.map(f => `<option value="${f}">`).join("");
   });
 
   window.applyAllCustomizations = () => {
+    console.log('🎨 Plugin UI: Iniciando aplicação de customizações...');
+    
     const font = document.getElementById('font-family').value;
     const weight = document.getElementById('font-weight').value;
     const size = +document.getElementById('font-size').value;
@@ -1401,27 +1398,87 @@ fontList.innerHTML = msg.fonts.map(f => `<option value="${f}">`).join("");
     const frameFilhoValue = document.getElementById('frame-filho').value;
     const imageFiles = inputFile.files;
 
-    parent.postMessage({
-  pluginMessage: {
-    type: 'edit-text-style',
-    font, weight, size, color: colorTexto,
-    frameName: frameFilhoValue,
-    parentName: frameMaeValue // ✅ adicionado
-  }
-}, '*');
+    console.log('📋 Plugin UI: Valores capturados:', {
+      font, weight, size, colorTexto, colorFundo, 
+      frameMaeValue, frameFilhoValue, 
+      imageFilesCount: imageFiles.length
+    });
 
-    if (frameFilhoValue && frameMaeValue && colorFundo) {
-  parent.postMessage({
-    pluginMessage: {
-      type: 'edit-frame',
-      frameName: frameFilhoValue,
-      parentName: frameMaeValue,
-      color: colorFundo
+    // Verificar se há mudanças de texto para aplicar
+    const temMudancasTexto = (font && font !== '') || 
+                           (size && size > 0 && size !== 75) || 
+                           (colorTexto && colorTexto !== '#000000');
+
+    // Aplicar estilo de texto apenas se há mudanças
+    if (temMudancasTexto) {
+      console.log('📝 Plugin UI: Enviando edit-text-style...');
+      parent.postMessage({
+        pluginMessage: {
+          type: 'edit-text-style',
+          font: font && font !== '' ? font : null,
+          weight: weight || null,
+          size: (size && size > 0 && size !== 75) ? size : null,
+          color: (colorTexto && colorTexto !== '#000000') ? colorTexto : null,
+          frameName: frameFilhoValue,
+          parentName: frameMaeValue
+        }
+      }, '*');
+    } else {
+      console.log('⚠️ Plugin UI: Nenhuma mudança de texto detectada');
     }
-  }, '*');
-}
 
+    // Aplicar cor de fundo apenas se especificada e diferente da cor padrão
+    if (colorFundo && colorFundo !== '#ffffff') {
+      if (frameFilhoValue && frameMaeValue) {
+        console.log('🖼️ Plugin UI: Enviando edit-frame...');
+        parent.postMessage({
+          pluginMessage: {
+            type: 'edit-frame',
+            frameName: frameFilhoValue,
+            parentName: frameMaeValue,
+            color: colorFundo
+          }
+        }, '*');
+      } else {
+        console.warn('⚠️ Plugin UI: Frame não selecionado para aplicar fundo');
+        const mensagem = !frameMaeValue ? 'Frame principal não selecionado' :
+                        !frameFilhoValue ? 'Frame interno não selecionado' :
+                        'Frames não selecionados';
+        
+        // Mostrar mensagem na interface
+        const container = document.querySelector('.container');
+        let msgElement = document.getElementById('frame-warning');
+        if (!msgElement) {
+          msgElement = document.createElement('div');
+          msgElement.id = 'frame-warning';
+          msgElement.style.cssText = `
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: center;
+            font-weight: 600;
+            z-index: 1000;
+          `;
+          container.appendChild(msgElement);
+        }
+        msgElement.textContent = `⚠️ ${mensagem}`;
+        setTimeout(() => {
+          if (msgElement && msgElement.parentNode) {
+            msgElement.parentNode.removeChild(msgElement);
+          }
+        }, 3000);
+      }
+    }
+
+    // Aplicar imagens se existirem
     if (imageFiles.length > 0) {
+      console.log('🖼️ Plugin UI: Processando', imageFiles.length, 'imagens...');
       const readers = Array.from(imageFiles).map(file => {
         return new Promise(resolve => {
           const reader = new FileReader();
@@ -1431,42 +1488,25 @@ fontList.innerHTML = msg.fonts.map(f => `<option value="${f}">`).join("");
       });
 
       Promise.all(readers).then(results => {
+        console.log('📸 Plugin UI: Imagens processadas, enviando replace-images...');
         const previewZone = document.getElementById("image-preview");
         previewZone.innerHTML = results.map(src => `<img src="${src}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;">`).join("");
 
-        parent.postMessage({ pluginMessage: {
-  type: 'replace-images',
-  frameName: frameFilhoValue,
-  parentName: frameMaeValue,
-  images: results
-} }, '*');
+        parent.postMessage({ 
+          pluginMessage: {
+            type: 'replace-images',
+            frameName: frameFilhoValue,
+            parentName: frameMaeValue,
+            images: results
+          } 
+        }, '*');
       });
     }
+    
+    console.log('✅ Plugin UI: Todas as mensagens enviadas para o Figma');
   };
 }
-const btnLimparTexto = document.getElementById("limpar-cor-texto");
-const inputTexto = document.getElementById("color-texto");
-btnLimparTexto.onclick = () => {
-  inputTexto.value = "";
-  inputTexto.style.backgroundColor = "#fefaf7";
-  inputTexto.style.border = "1px dashed #ccc";
-};
-inputTexto.oninput = () => {
-  inputTexto.style.backgroundColor = inputTexto.value;
-  inputTexto.style.border = "1px solid #ccc";
-};
 
-const btnLimparFundo = document.getElementById("limpar-cor-fundo");
-const inputFundo = document.getElementById("color-fundo");
-btnLimparFundo.onclick = () => {
-  inputFundo.value = "";
-  inputFundo.style.backgroundColor = "#fefaf7";
-  inputFundo.style.border = "1px dashed #ccc";
-};
-inputFundo.oninput = () => {
-  inputFundo.style.backgroundColor = inputFundo.value;
-  inputFundo.style.border = "1px solid #ccc";
-};nLimparFundo.onclick = () => inputFundo.value = "";
 
 window.showCustomizationStep = showCustomizationStep;
 
@@ -1474,34 +1514,34 @@ window.showCustomizationStep = showCustomizationStep;
 document.addEventListener('DOMContentLoaded', () => {
   // Efeito de focus suave em todos os inputs
   document.addEventListener('focusin', (e) => {
-    if (e.target.matches('input, textarea, select')) {
+    if (e.target && e.target.matches && e.target.matches('input, textarea, select')) {
       e.target.style.transform = 'translateY(-1px) scale(1.01)';
       e.target.style.transition = 'all 0.2s ease';
     }
   });
 
   document.addEventListener('focusout', (e) => {
-    if (e.target.matches('input, textarea, select')) {
+    if (e.target && e.target.matches && e.target.matches('input, textarea, select')) {
       e.target.style.transform = '';
     }
   });
 
   // Efeito de hover em botões
   document.addEventListener('mouseenter', (e) => {
-    if (e.target.matches('button:not(:disabled)')) {
+    if (e.target && e.target.matches && e.target.matches('button:not(:disabled)')) {
       e.target.style.transform = 'translateY(-2px) scale(1.02)';
     }
   }, true);
 
   document.addEventListener('mouseleave', (e) => {
-    if (e.target.matches('button')) {
+    if (e.target && e.target.matches && e.target.matches('button')) {
       e.target.style.transform = '';
     }
   }, true);
 
   // Efeito de typing para textareas
   document.addEventListener('input', (e) => {
-    if (e.target.matches('textarea')) {
+    if (e.target && e.target.matches && e.target.matches('textarea')) {
       e.target.style.boxShadow = '0 0 0 4px rgba(251, 191, 36, 0.1), 0 8px 25px rgba(251, 191, 36, 0.15)';
       
       clearTimeout(e.target.typingTimeout);
@@ -1534,7 +1574,7 @@ document.getElementById("fechar-modal").onclick = () => {
 
 // Delegação de evento segura para botões "👁 Ver"
 document.addEventListener("click", (e) => {
-  if (e.target.matches(".ver-preview")) {
+  if (e.target && e.target.matches && e.target.matches(".ver-preview")) {
     const i = e.target.dataset.index;
     const blocos = window.historicoColagens[i];
     const html = blocos.map((b, j) => `<div><strong>Bloco ${j + 1}:</strong> ${b}</div>`).join("<hr>");
