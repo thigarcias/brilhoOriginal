@@ -8,74 +8,90 @@ import DiagnosticoCompleto from "../../components/brilho-original/diagnostico-co
 
 function DiagnosticoContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
-  const [analysis, setAnalysis] = useState("")
-  const [companyName, setCompanyName] = useState("Sua Marca")
-  const [contactData, setContactData] = useState("")
+  const [brandData, setBrandData] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
-    // Tentar obter dados do cache
-    const cachedData = BrandplotCache.get()
-    
-    if (cachedData?.diagnostico && cachedData?.companyName) {
-      setAnalysis(cachedData.diagnostico)
-      setCompanyName(cachedData.companyName)
-      setContactData(cachedData.contact || "")
+    async function loadData() {
+      let idUnico = null
+      if (typeof window !== "undefined") {
+        const cache = BrandplotCache.get()
+        if (cache && cache.idUnico) {
+          idUnico = cache.idUnico
+        } else {
+          const storedId = localStorage.getItem("brandplot_idUnico")
+          if (storedId) idUnico = storedId
+        }
+      }
+      if (idUnico) {
+        try {
+          const response = await fetch(`/api/brand-data?idUnico=${encodeURIComponent(idUnico)}`)
+          const result = await response.json()
+          if (result.success && result.data) {
+            setBrandData(result.data)
+            setLoading(false)
+            return
+          }
+        } catch {}
+      }
+      setBrandData(null)
       setLoading(false)
-    } else {
-      // Verificar se há parâmetros na URL (caso venha de um link direto)
-      const urlAnalysis = searchParams.get('analysis')
-      const urlCompany = searchParams.get('company')
-      const urlContact = searchParams.get('contact')
-      
-      if (urlAnalysis && urlCompany) {
-        setAnalysis(decodeURIComponent(urlAnalysis))
-        setCompanyName(decodeURIComponent(urlCompany))
-        setContactData(urlContact ? decodeURIComponent(urlContact) : "")
-        setLoading(false)
-      } else {
-        // Se não há dados reais, usar dados mock para demonstração
-        setAnalysis("") // Vai triggerar o mock no diagnostico-completo.tsx
-        setCompanyName("Sua Marca")
-        setContactData("")
-        setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  const handleBack = () => {
+    // Verificar se o usuário está realmente logado
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser)
+        if (user.idUnico) {
+          router.push("/dashboard")
+          return
+        }
+      } catch (e) {
+        console.error("Erro ao verificar usuário:", e)
       }
     }
-  }, [searchParams])
+    
+    // Se não está logado, voltar para a homepage
+    router.push("/")
+  }
+
   if (loading) {
     return (
       <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814] flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
+        <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#c8b79e]/30 border-t-[#c8b79e] rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white/70">Carregando diagnóstico...</p>
-        </motion.div>
+        </div>
       </div>
     )
   }
+  if (!brandData) {
+    return (
+      <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814] flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="bg-white/10 border border-white/20 rounded-lg p-6">
+            <p className="text-white mb-4">Nenhum diagnóstico encontrado para sua marca.</p>
+            <button 
+              onClick={handleBack}
+              className="px-4 py-2 bg-[#c8b79e] hover:bg-[#d0c0a8] text-[#1a1814] font-medium rounded-lg transition-colors"
+            >
+              Voltar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <DiagnosticoCompleto 
-      brandData={{
-        nome_empresa: companyName,
-        idUnico: "",
-        resposta_1: null,
-        resposta_2: null,
-        resposta_3: null,
-        resposta_4: null,
-        resposta_5: null,
-        resposta_6: null,
-        resposta_7: null,
-        resposta_8: null,
-        contato_telefone: null,
-        contato_email: null,
-        scoreDiagnostico: null,
-        diagnostico: analysis,
-        contexto: null
-      }}
-      onBack={() => router.push("/")}
+      brandData={brandData}
+      onBack={handleBack}
     />
   )
 }

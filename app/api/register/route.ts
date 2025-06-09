@@ -70,10 +70,13 @@ export async function POST(request: Request) {
       updateData.diagnostico = cachedData.analysis
     }    if (cachedData?.answers) {
       cachedData.answers.forEach((ans: string, idx: number) => {
-        // answers[0] is company name (handled separately as nome_empresa)
+        // answers[0] is company name - salvar no campo nome_empresa
+        if (idx === 0) {
+          updateData.nome_empresa = ans || null
+        }
         // answers[1-8] map to resposta_1 through resposta_8
         // answers[9] is contact info (handled separately)
-        if (idx >= 1 && idx <= 8) {
+        else if (idx >= 1 && idx <= 8) {
           updateData[`resposta_${idx}`] = ans || null
         }
       })

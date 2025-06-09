@@ -19,8 +19,8 @@ interface BrandData {
   resposta_6: string | null
   resposta_7: string | null
   resposta_8: string | null
-  contato_telefone: string | null
-  contato_email: string | null
+  telefone: string | null
+  email: string | null
   scoreDiagnostico: string | null
   diagnostico?: string | null
   contexto: string | null
@@ -43,7 +43,6 @@ interface DiagnosticoJSON {
     esforco: "Alto" | "Médio" | "Baixo"
   }>
   bio_instagram: string
-  taglines: string[]
   checklist_30_dias: {
     semana1: string
     semana2: string
@@ -62,11 +61,29 @@ export default function DiagnosticoCompleto({ brandData, onBack }: DiagnosticoCo
   const [markdownContent, setMarkdownContent] = useState("")
   const [analysis, setAnalysis] = useState("")
   const [parsedDiagnostico, setParsedDiagnostico] = useState<DiagnosticoJSON | null>(null)
+  const [isLoggedUser, setIsLoggedUser] = useState(false)
 
   const companyName = brandData.nome_empresa || "Sua Marca"
+  
+  // Verificar se é usuário logado ou do onboarding
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("user")
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser)
+          setIsLoggedUser(!!user.idUnico)
+        } catch (e) {
+          setIsLoggedUser(false)
+        }
+      } else {
+        setIsLoggedUser(false)
+      }
+    }
+  }, [])
   const contactData = JSON.stringify({
-    phone: brandData.contato_telefone,
-    email: brandData.contato_email
+    phone: brandData.telefone,
+    email: brandData.email
   })
   // Função para gerar dados de mock quando não há diagnóstico
   const getMockDiagnostico = (): DiagnosticoJSON => {
@@ -108,14 +125,7 @@ export default function DiagnosticoCompleto({ brandData, onBack }: DiagnosticoCo
         }
       ],
       bio_instagram: `✨ ${companyName} | Transformando experiências com excelência | 🎯 Soluções premium para quem busca o melhor | 📧 contato@${companyName.toLowerCase().replace(/\s+/g, '')}.com`,
-      taglines: [
-        `${companyName}: Onde a excelência encontra a inovação`,
-        `Transformando visões em realidade`,
-        `Sua escolha premium para resultados excepcionais`,
-        `Além do esperado, sempre`,
-        `${companyName}: Redefinindo padrões de qualidade`
-      ],
-            checklist_30_dias: {
+      checklist_30_dias: {
         semana1: "Auditoria completa da comunicação atual - revisar site, redes sociais e materiais de divulgação",
         semana2: "Implementar nova identidade visual e padronizar comunicação em todas as plataformas",
         semana3: "Lançar campanha de conteúdo focada no novo posicionamento com cases de sucesso",
@@ -257,7 +267,9 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
             className="flex items-center gap-2 text-white/60 hover:text-white/80 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm">Voltar ao Dashboard</span>
+            <span className="text-sm">
+              {isLoggedUser ? 'Voltar ao Dashboard' : 'Voltar à Página Inicial'}
+            </span>
           </button>
           
           <div className="flex items-center gap-2">
@@ -477,27 +489,6 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
                   </div>
                 </motion.div>
 
-                {/* Card: Taglines */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.3, duration: 0.6 }}
-                  className="bg-gradient-to-br from-cyan-500/[0.1] to-cyan-600/[0.05] backdrop-blur-sm border border-cyan-500/20 rounded-2xl p-6 md:p-8 shadow-xl"
-                >
-                  <h2 className="text-xl md:text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                    🎨 Taglines Sugeridas
-                  </h2>
-                  <div className="space-y-2">
-                    {parsedDiagnostico.taglines.map((tagline, index) => (
-                      <div key={index} className="bg-white/[0.05] rounded-lg p-3 border border-white/10">
-                        <p className="text-white/90 text-sm md:text-base">
-                          {index + 1}. "{tagline}"
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-
                 {/* Card: Checklist 30 Dias */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -564,44 +555,20 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
             )}
           </div>
 
-          {/* Company Context Section */}
-          {brandData.contexto && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2, duration: 0.6 }}
-              className="mt-8"
-            >
-              <div className="bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 shadow-xl">
-                <h2 className="text-xl md:text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="text-[#c8b79e]">🏢</span>
-                  Contexto e Análise de Mercado
-                </h2>
-                <p className="text-white/60 mb-4 text-sm">
-                  Análise detalhada da empresa e posicionamento no mercado
-                </p>
-                <div className="bg-white/[0.03] rounded-lg p-4 border border-white/[0.08]">
-                  <div className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap">
-                    {brandData.contexto}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
+          {/* Call-to-action para WhatsApp */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1, duration: 0.6 }}
+            transition={{ delay: 1.6, duration: 0.6 }}
             className="mt-10 flex flex-col gap-6 justify-center items-center"
           >
             <div className="bg-gradient-to-r from-[#1C1914] to-[#553F1D] to-90% border border-[#553F1D]/30 shadow-2xl rounded-2xl p-8 md:p-10 text-center max-w-2xl w-full">
               <p className="text-2xl md:text-3xl font-extrabold text-white mb-3 drop-shadow-sm">
                 Pronto para <span className="text-[#fde68a]">transformar sua marca</span> e <span className="text-[#fde68a]">atrair clientes que pagam mais?</span>
               </p>
-              <p className="text-lg text-white/90 mb-8 font-medium">Dê o próximo passo e fale com um especialista para impulsionar seu negócio.</p>
-                <a
-                href="https://wa.me/5511974564367?text=Olá! Quero valorizar minha marca com a BrandPlot."
+              <p className="text-lg text-white/90 mb-8 font-medium">Dê o próximo passo e fale com um especialista para impulsionar seu negócio.</p>              
+              <a
+                href={`https://wa.me/5511974564367?text=Olá! Acabei de ver meu diagnóstico completo da ${companyName} e quero valorizar minha marca com a BrandPlot.`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-green-500 via-green-600 to-green-500 hover:from-green-600 hover:to-green-500 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-xl hover:scale-105 border-2 border-green-400/40 focus:outline-none focus:ring-2 focus:ring-green-300"
@@ -609,22 +576,6 @@ ${brandData.resposta_7 ? `"Minha marca existe para que as pessoas possam finalme
                 <MessageCircle className="w-6 h-6 text-white" />
                 Quero valorizar minha marca
               </a>
-                
-              {/* Botão de Cadastro - Valorização da Marca */}
-              <div className="mt-6 pt-6 border-t border-white/10">
-                <p className="text-white/70 text-sm mb-4 text-center">
-                  Crie sua conta e tenha acesso a mais ferramentas de marca
-                </p>                
-                <a
-                  href={`/login?mode=register&company=${encodeURIComponent(companyName)}&contact=${encodeURIComponent(JSON.stringify({ phone: brandData.contato_telefone, email: brandData.contato_email }) || '')}`}
-                  className="group relative flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold text-base rounded-xl transition-all duration-300 shadow-lg hover:scale-105 border border-[#c8b79e]/30 focus:outline-none focus:ring-2 focus:ring-[#c8b79e]/50"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                  </svg>
-                  Criar Conta Gratuita
-                </a>
-              </div>
             </div>
           </motion.div>
         </div>

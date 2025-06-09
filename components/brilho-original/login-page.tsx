@@ -494,7 +494,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 text-center">
+            {/* <div className="mt-6 text-center">
               <span className="text-white/60 text-sm">{isLogin ? "Não tem uma conta?" : "Já tem uma conta?"}</span>
               <button
                 onClick={toggleMode}
@@ -502,7 +502,7 @@ export default function LoginPage() {
               >
                 {isLogin ? "Cadastre-se" : "Faça login"}
               </button>
-            </div>
+            </div> */}
           </motion.div>
 
           {/* Back to home */}

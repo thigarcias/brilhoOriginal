@@ -1,5 +1,10 @@
 import Dashboard from "@/components/brilho-original/dashboard"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
 
 export default function DashboardPage() {
-  return <Dashboard />
+  return (
+    <ProtectedRoute>
+      <Dashboard />
+    </ProtectedRoute>
+  )
 }

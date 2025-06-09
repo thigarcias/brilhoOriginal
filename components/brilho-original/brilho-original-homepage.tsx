@@ -2,7 +2,7 @@
 
 import type React from "react"
 import Image from "next/image"
-import { useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Pacifico } from "next/font/google"
 import { cn } from "@/lib/utils"
@@ -19,7 +19,7 @@ import {
   TrendingUp,
   MessageSquareQuote,
 } from "lucide-react"
-import { useState } from "react"
+import { BrandplotCache } from "@/lib/brandplot-cache"
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -34,6 +34,8 @@ export default function BrilhoOriginalHomepage({
 }) {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<"branding" | "score" | "insights">("branding")
+  const [companyName, setCompanyName] = useState<string | null>(null)
+  const [isLogged, setIsLogged] = useState(false)
 
   const startSectionRef = useRef<HTMLDivElement>(null)
   const benefitsSectionRef = useRef<HTMLDivElement>(null)
@@ -93,6 +95,42 @@ export default function BrilhoOriginalHomepage({
         "Após receber seu diagnóstico, você pode implementar as recomendações por conta própria ou contratar nossos serviços de consultoria para ajudá-lo no processo. Oferecemos planos específicos para diferentes necessidades e orçamentos.",
     },
   ]
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Verifica se há usuário realmente logado (com credenciais)
+      const storedUser = localStorage.getItem("user")
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser)
+          if (user.idUnico && user.company) {
+            setCompanyName(user.company)
+            setIsLogged(true)
+            return
+          }
+        } catch (e) {
+          console.error("Erro ao parsear dados do usuário:", e)
+        }
+      }
+      
+      // Se não há usuário logado, mas há cache do questionário, apenas pega o nome
+      const cache = BrandplotCache.get()
+      if (cache && cache.companyName) {
+        setCompanyName(cache.companyName)
+      } else {
+        setCompanyName(null)
+      }
+      setIsLogged(false)
+    }
+  }, [])
+
+  const handleLogout = () => {
+    // Limpar dados do usuário logado
+    localStorage.removeItem("user")
+    localStorage.removeItem("brandplot_idUnico")
+    BrandplotCache.clear()
+    window.location.reload()
+  }
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814]">
@@ -190,18 +228,38 @@ export default function BrilhoOriginalHomepage({
             </nav>
 
             <div className="flex items-center gap-4">
-              <Link
-                href="/login"
-                className="text-white/60 hover:text-white transition-colors text-sm hidden md:block"
-              >
-                Login
-              </Link>
-              <button
-                onClick={handleStart}
-                className="px-4 py-2 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
-              >
-                Começar Diagnóstico
-              </button>
+              {!isLogged && (
+                <Link
+                  href="/login"
+                  className="text-white/60 hover:text-white transition-colors text-sm hidden md:block"
+                >
+                  Login
+                </Link>
+              )}
+              {isLogged && (
+                <div className="flex items-center gap-4">
+                  <Link
+                    href="/dashboard"
+                    className="text-white/80 hover:text-[#c8b79e] transition-colors text-sm font-medium"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="text-white/60 hover:text-[#c8b79e] transition-colors text-sm border-0 bg-transparent"
+                  >
+                    Sair
+                  </button>
+                </div>
+              )}
+              {!isLogged && (
+                <button
+                  onClick={handleStart}
+                  className="px-4 py-2 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
+                >
+                  Começar Diagnóstico
+                </button>
+              )}
             </div>
           </div>
         </header>

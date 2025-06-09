@@ -90,306 +90,448 @@ async function fetchCompanyContext(companyName: string, idUnico: string, supabas
 /**
  * Busca contexto da empresa usando Gemini (Google GenAI) com Google Search
  */
-async function fetchCompanyContextGemini(companyName: string, idUnico: string, supabase: any) {
+async function fetchCompanyContextGemini(companyName: string, idUnico: string, supabase: any, bioBtImageUrl?: string) {
   try {
+    console.log(`[GEMINI] Iniciando busca de contexto para: ${companyName} (ID: ${idUnico})`)
+    
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('[GEMINI] API Key não configurada')
+      return
+    }
+
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
     });
+    
+    console.log('[GEMINI] Cliente GoogleGenAI criado com sucesso')
+    
     const tools = [{ googleSearch: {} }];
     const config = {
       tools,
       responseMimeType: 'text/plain',
     };
     const model = 'gemini-2.5-flash-preview-04-17';
+    
+    console.log(`[GEMINI] Configuração: modelo=${model}, tools=googleSearch`)
+    
+    // Preparar as partes do conteúdo
+    const contentParts = [];
+    
+    // Adicionar a imagem da bio se fornecida
+    if (bioBtImageUrl) {
+      try {
+        // Fetch da imagem para converter em base64
+        const imageResponse = await fetch(bioBtImageUrl);
+        if (imageResponse.ok) {
+          const imageBuffer = await imageResponse.arrayBuffer();
+          const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+          
+          // Detectar o tipo MIME da imagem
+          const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+          
+          contentParts.push({
+            inlineData: {
+              data: imageBase64,
+              mimeType: mimeType
+            }
+          });
+        }
+      } catch (imageError) {
+        console.warn('Erro ao processar imagem da bio:', imageError);
+      }
+    }
+    
+    // Adicionar o prompt de texto
+    const textPrompt = bioBtImageUrl 
+      ? `Você é um especialista em análise de marcas e empresas. Analise tanto a imagem da bio do Instagram fornecida quanto pesquise informações atualizadas sobre a empresa "${companyName}" e crie um relatório de contexto abrangente incluindo:
+
+1. **Análise da Bio do Instagram**: Analise a imagem da bio fornecida - identifique o nome da conta, biografia, número de seguidores, seguindo, posts, estilo visual, cores predominantes, tipo de conteúdo mostrado
+2. **Visão geral da empresa e setor**: O que a empresa faz, em que setor atua, quando foi fundada
+3. **Posicionamento de marca**: Como ela se posiciona no mercado, missão e valores comparados com o que vemos na bio
+4. **Público-alvo**: Quem são seus clientes típicos baseado na presença digital
+5. **Principais concorrentes**: Empresas similares no mercado
+6. **Características do setor**: Tendências e desafios do mercado
+7. **Presença digital**: Análise da estratégia digital baseada na bio e pesquisas
+8. **Notícias recentes**: Novidades, lançamentos, parcerias
+9. **Recomendações**: Sugestões de melhoria para a bio e estratégia digital baseadas na análise
+
+**Importante**: Combine as informações da imagem da bio com pesquisas atualizadas sobre esta empresa. Se não encontrar informações específicas sobre a empresa, forneça uma análise baseada no que é visível na bio e no setor provável.`
+      : `Você é um especialista em análise de marcas e empresas. Pesquise informações atualizadas sobre a empresa "${companyName}" e crie um relatório de contexto abrangente incluindo:
+
+1. **Visão geral da empresa e setor**: O que a empresa faz, em que setor atua, quando foi fundada
+2. **Posicionamento de marca**: Como ela se posiciona no mercado, missão e valores  
+3. **Público-alvo**: Quem são seus clientes típicos
+4. **Principais concorrentes**: Empresas similares no mercado
+5. **Características do setor**: Tendências e desafios do mercado
+6. **Presença digital**: Website, redes sociais, estratégia digital
+7. **Notícias recentes**: Novidades, lançamentos, parcerias
+
+**Importante**: Busque informações reais e atualizadas sobre esta empresa. Se não encontrar informações específicas, forneça uma análise baseada no nome e setor provável.`;
+    
+    contentParts.push({
+      text: textPrompt
+    });
+
     const contents = [
       {
         role: 'user',
-        parts: [
-          {
-            text: `Você é um especialista em análise de marcas e empresas. Pesquise informações atualizadas sobre a empresa "${companyName}" e crie um relatório de contexto abrangente incluindo:\n\n1. Visão geral da empresa e setor\n2. Posicionamento de marca\n3. Público-alvo\n4. Principais concorrentes\n5. Características do setor\n6. Presença digital\n7. Notícias recentes\n\nImportante: Busque informações reais e atualizadas sobre esta empresa. Se não encontrar informações específicas, forneça uma análise baseada no nome e setor provável.`,
-          },
-        ],
+        parts: contentParts
       },
     ];
+    
+    console.log('[GEMINI] Enviando requisição para o modelo...')
+    
     const response = await ai.models.generateContentStream({
       model,
       config,
       contents,
     });
+    
+    console.log('[GEMINI] Resposta recebida, processando stream...')
+    
     let contexto = '';
+    let chunkCount = 0;
     for await (const chunk of response) {
       contexto += chunk.text;
+      chunkCount++;
     }
-    if (contexto) {
+    
+    console.log(`[GEMINI] Stream processado: ${chunkCount} chunks, ${contexto.length} caracteres`)
+    
+    if (contexto && contexto.length > 0) {
+      console.log(`[GEMINI] Salvando contexto no banco (${contexto.substring(0, 100)}...)`)
+      
       // Atualizar o registro no Supabase com o contexto obtido
       const { error: updateError } = await supabase
         .from('brandplot')
         .update({ contexto: contexto })
         .eq('idUnico', idUnico);
       if (updateError) {
-        console.error('Erro ao atualizar contexto no Supabase (Gemini):', updateError);
+        console.error('[GEMINI] Erro ao atualizar contexto no Supabase:', updateError);
       } else {
-        console.log('Contexto salvo com sucesso no Supabase (Gemini)');
+        console.log('[GEMINI] Contexto salvo com sucesso no Supabase');
       }
     } else {
-      console.error('Não foi possível extrair o contexto da resposta (Gemini)');
+      console.error('[GEMINI] Contexto vazio ou inválido');
     }
   } catch (error) {
-    console.error('Erro na busca de contexto da empresa (Gemini):', error);
+    console.error('[GEMINI] Erro na busca de contexto da empresa:', error);
     if (error instanceof Error) {
-      console.error('Mensagem do erro:', error.message);
-      console.error('Stack trace:', error.stack);
+      console.error('[GEMINI] Mensagem do erro:', error.message);
+      console.error('[GEMINI] Stack trace:', error.stack);
+    }
+    
+    // Log adicional para erros específicos do Gemini
+    if (error && typeof error === 'object') {
+      console.error('[GEMINI] Detalhes do erro:', JSON.stringify(error, null, 2));
     }
   }
 }
 
 export async function POST(request: Request) {
   try {
-    // Parse the request body
-    let body
-    try {
-      body = await request.json()
-    } catch (parseError) {
-      console.error("Error parsing request body:", parseError)
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
-    }
-
-    const { answers } = body
-
-    // Validate answers
-    if (!answers || !Array.isArray(answers)) {
-      console.error("Invalid answers format:", answers)
-      return NextResponse.json({ error: "Answers must be an array" }, { status: 400 })
-    }
-
-    // Check if OpenAI API key is available
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OpenAI API key is missing")
-      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 })
-    }
-
-    // Initialize the OpenAI client
-    let openai
-    try {
-      openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      })
-    } catch (initError) {
-      console.error("Error initializing OpenAI client:", initError)
-      return NextResponse.json({ error: "Failed to initialize OpenAI client" }, { status: 500 })
-    }
-
-    const supabaseUrl = "https://znkfwlpgsxxawucacmda.supabase.co"
+    const body = await request.json()
+    const { idUnico, bioBtImageUrl, answers } = body
+    
+    // Configuração do Supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://znkfwlpgsxxawucacmda.supabase.co"
     const supabaseKey = process.env.SUPABASE_KEY
-
     if (!supabaseKey) {
-      console.error("Supabase key não configurada")
       return NextResponse.json({ error: "Supabase key não configurada" }, { status: 500 })
     }
-
     const supabase = createClient(supabaseUrl, supabaseKey as string)
 
-    // Gera o idUnico baseado no nome da empresa
-    const generateIdUnico = (nomeEmpresa: string): string => {
-      if (!nomeEmpresa) {
-        return `empresa-${Date.now()}-brandplot`
-      }
-
-      const cleanName = nomeEmpresa
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, '') // Remove todos os espaços
-        .replace(/[^a-z0-9]/g, '') // Remove caracteres especiais, mantém só letras e números
-
-      return `${cleanName}-brandplot`
-    }
-
-    // Monta o objeto para o banco
-    let contact = { phone: null, email: null }
-    try {
-      if (answers[9]) {
-        contact = JSON.parse(answers[9])
-      }
-    } catch { }
-
-    const idUnico = generateIdUnico(answers[0])
-
-    const dbData = {
-      nome_empresa: answers[0] || null,
-      idUnico: idUnico,
-      resposta_1: answers[1] || null,
-      resposta_2: answers[2] || null,
-      resposta_3: answers[3] || null,
-      resposta_4: answers[4] || null,
-      resposta_5: answers[5] || null,
-      resposta_6: answers[6] || null,
-      resposta_7: answers[7] || null,
-      resposta_8: answers[8] || null,
-      telefone: contact.phone || null,
-      email: contact.email || null,
-      scoreDiagnostico: null as string | null,
-      diagnostico: null as string | null,
-      contexto: null as string | null
-    }
-    try {
-      // Preparar conteúdo da mensagem
-      let messageContent = `Analise esta marca com base nas seguintes respostas:
-
-1. Nome da empresa: ${answers[0] || "Não informado"}
-2. O que te motivou a criar essa marca? ${answers[1] || "Não informado"}
-3. Se sua marca fosse uma pessoa, como ela falaria? ${answers[2] || "Não informado"}
-4. O que sua marca entrega que outras não conseguem? ${answers[3] || "Não informado"}
-5. Quem é o cliente ideal para você? ${answers[4] || "Não informado"}
-6. Hoje, quem mais compra de você? (é o público ideal?) ${answers[5] || "Não informado"}
-7. Como você gostaria que sua marca fosse percebida? ${answers[6] || "Não informado"}
-8. Em uma frase: "Minha marca existe para que as pessoas possam finalmente __________." ${answers[7] || "Não informado"}
-10. Contato informado: Celular: ${contact.phone || "Não informado"}, E-mail: ${contact.email || "Não informado"}`
-
-      // Verificar se há imagem do Instagram
-      if (answers[8]) {
-        try {
-          const imageData = JSON.parse(answers[8])
-          if (imageData.base64 && imageData.type) {
-            messageContent += `\n\n9. ANÁLISE DO INSTAGRAM: Analise detalhadamente a imagem do perfil do Instagram fornecida. Examine a bio, feed visual, destaques e qualquer elemento visível para entender melhor o posicionamento atual da marca e como ela se apresenta nas redes sociais. [IMAGEM FORNECIDA]`
-          }
-        } catch (error) {
-          console.log("Erro ao processar imagem, continuando sem ela:", error)
-          messageContent += `\n\n9. Instagram screenshot: Fornecido mas não pôde ser processado`
-        }
-      } else {
-        messageContent += `\n\n9. Instagram screenshot: Não fornecido`
-      }
-
-      // Criar uma thread para o Assistant
-      const thread = await openai.beta.threads.create()
+    // FLUXO 1: ONBOARDING - Análise inicial das respostas
+    if (answers && Array.isArray(answers)) {
+      console.log("Fluxo de onboarding - processando respostas:", answers)
       
-      // Criar mensagem na thread com o conteúdo
-      await openai.beta.threads.messages.create(thread.id, {
-        role: "user",
-        content: messageContent
-      })
-
-      // Executar o Assistant
-      const run = await openai.beta.threads.runs.create(thread.id, {
-        assistant_id: "asst_m1fio8b1sD3HyVL4KTBwbtzr"
-      })
-
-      // Aguardar a conclusão do run
-      let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+      if (!process.env.OPENAI_API_KEY) {
+        return NextResponse.json({ error: "OpenAI API key não configurada" }, { status: 500 })
+      }
       
-      while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+      // Extrair nome da empresa das respostas
+      const companyName = answers[0] || "Empresa sem nome"
+      
+      // Gerar ID único
+      const generatedIdUnico = `${companyName.toLowerCase().replace(/\s+/g, '')}-brandplot`
+      
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+      // Criar prompt para análise inicial (truncar respostas longas)
+      const truncateText = (text: string, maxLength: number = 500) => {
+        if (!text) return 'N/A'
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
       }
 
-      if (runStatus.status !== 'completed') {
-        console.error("Assistant run failed:", runStatus.status)
-        return NextResponse.json({ error: "Analysis failed" }, { status: 500 })
-      }
+      const prompt = `Analise as respostas do questionário de marca:
 
-      // Buscar as mensagens da thread
-      const messages = await openai.beta.threads.messages.list(thread.id)
-      
-      // Pegar a última mensagem do assistant
-      const assistantMessage = messages.data.find(msg => msg.role === 'assistant')
-      
-      if (!assistantMessage || !assistantMessage.content || !assistantMessage.content[0]) {
-        console.error("No assistant message found")
-        return NextResponse.json({ error: "No analysis generated" }, { status: 500 })
-      }
+RESPOSTAS:
+1. Empresa: ${truncateText(answers[0])}
+2. Setor: ${truncateText(answers[1])}
+3. Motivação: ${truncateText(answers[2])}
+4. Público atual: ${truncateText(answers[3])}
+5. Público ideal: ${truncateText(answers[4])}
+6. Percepção atual: ${truncateText(answers[5])}
+7. Percepção desejada: ${truncateText(answers[6])}
+8. Desafios: ${truncateText(answers[7])}
+9. Objetivo: ${truncateText(answers[8])}
+10. Contato: ${truncateText(answers[9])} `
 
-      const analysis = (assistantMessage.content[0] as any).text?.value
-
-      if (!analysis) {
-        console.error("No analysis content received from OpenAI Assistant")
-        return NextResponse.json({ error: "No analysis generated" }, { status: 500 })
-      }
-
-      // Tentar fazer parse do JSON retornado pela API
-      let parsedAnalysis
-      let scoreDiagnostico = null
-      
       try {
-        // Limpar possíveis caracteres extras antes/depois do JSON
-        const cleanedAnalysis = analysis.trim().replace(/^```json\s*|\s*```$/g, '')
-        parsedAnalysis = JSON.parse(cleanedAnalysis)
+        // Criar thread e enviar mensagem
+        const thread = await openai.beta.threads.create()
+        await openai.beta.threads.messages.create(thread.id, {
+          role: "user",
+          content: prompt
+        })
         
-        // Extrair scores do JSON
-        scoreDiagnostico = parsedAnalysis.score_ui?.toString() || parsedAnalysis.score_interno?.toString() || "0"
+        // Executar o Assistant de Onboarding
+        const run = await openai.beta.threads.runs.create(thread.id, {
+          assistant_id: "asst_m1fio8b1sD3HyVL4KTBwbtzr"
+        })
         
+        // Aguardar conclusão
+        let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+        while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+        }
+        
+        if (runStatus.status !== 'completed') {
+          throw new Error("Falha ao gerar análise")
+        }
+        
+        // Buscar resposta
+        const messages = await openai.beta.threads.messages.list(thread.id)
+        const assistantMessage = messages.data.find(msg => msg.role === 'assistant')
+        if (!assistantMessage || !assistantMessage.content || !assistantMessage.content[0]) {
+          throw new Error("Nenhuma análise gerada")
+        }
+        
+        const analysis = (assistantMessage.content[0] as any).text?.value
+        if (!analysis) {
+          throw new Error("Resposta vazia do assistant")
+        }
 
-      } catch (parseError) {
+        // Extrair score da análise
+        let extractedScore = "75" // Score padrão
         
-        // Fallback: tentar extrair score do texto tradicional
-        const scoreMatch = analysis.match(/(?:Nota|Score).*?(\d+)(?:\/100)?/i)
-        if (scoreMatch && scoreMatch[1]) {
-          const numbers = analysis.match(/\b(\d+)\b/g)
-          if (numbers) {
-            for (const num of numbers) {
-              const number = parseInt(num)
-              if (number >= 30 && number <= 100) {
-                scoreDiagnostico = number.toString()
-                break
-              }
+        try {
+          // Tentar extrair score se a análise for JSON
+          if (analysis.trim().startsWith("{")) {
+            const jsonAnalysis = JSON.parse(analysis)
+            if (jsonAnalysis.score_interno) {
+              extractedScore = jsonAnalysis.score_interno.toString()
+              console.log("Score extraído do JSON:", extractedScore)
+            } else if (jsonAnalysis.score_ui) {
+              extractedScore = jsonAnalysis.score_ui.toString()
+              console.log("Score UI extraído do JSON:", extractedScore)
+            }
+          } else {
+            // Tentar extrair score de texto (formato: "Nota de Clareza & Emoção da Marca: XX/100")
+            const scoreMatch = analysis.match(/Nota de Clareza & Emoção da Marca[:\s]*(\d+)\/100/)
+            if (scoreMatch && scoreMatch[1]) {
+              extractedScore = scoreMatch[1]
+              console.log("Score extraído do texto:", extractedScore)
+            }
+          }
+        } catch (parseError) {
+          console.log("Erro ao extrair score, usando padrão:", parseError)
+        }
+
+        // Preparar dados para salvar no banco
+        const insertData: any = {
+          idUnico: generatedIdUnico,
+          nome_empresa: companyName,
+          diagnostico: analysis,
+          scoreDiagnostico: extractedScore,
+          created_at: new Date().toISOString()
+        }
+
+        console.log("Company name:", companyName)
+        console.log("Generated idUnico:", generatedIdUnico)
+        console.log("Extracted score:", extractedScore)
+        console.log("Answers array:", answers)
+
+        // Salvar as respostas nos campos correspondentes
+        answers.forEach((ans: string, idx: number) => {
+          if (idx >= 1 && idx <= 8) {
+            insertData[`resposta_${idx}`] = ans || null
+            console.log(`Salvando resposta_${idx}:`, ans)
+          }
+        })
+
+        // Processar dados de contato se disponível
+        if (answers[9]) {
+          console.log("Processando contato:", answers[9])
+          try {
+            const contact = JSON.parse(answers[9])
+            if (contact.email) {
+              insertData.email = contact.email
+              console.log("Email adicionado:", contact.email)
+            }
+            if (contact.phone) {
+              insertData.telefone = contact.phone
+              console.log("Telefone adicionado:", contact.phone)
+            }
+          } catch {
+            // Se não for JSON, assume que é texto simples
+            const contactText = answers[9]
+            if (contactText.includes('@')) {
+              insertData.email = contactText.trim()
+              console.log("Email extraído:", contactText.trim())
+            } else {
+              insertData.telefone = contactText.trim()
+              console.log("Telefone extraído:", contactText.trim())
             }
           }
         }
+
+        console.log("Dados finais para inserir:", insertData)
+
+        // Verificar se já existe um registro com esse idUnico
+        const { data: existingRecord } = await supabase
+          .from("brandplot")
+          .select("id")
+          .eq("idUnico", generatedIdUnico)
+          .single()
+
+        if (existingRecord) {
+          console.log("Registro já existe, fazendo UPDATE:", existingRecord.id)
+          // Se já existe, fazer UPDATE
+          const { error: updateError } = await supabase
+            .from("brandplot")
+            .update(insertData)
+            .eq("idUnico", generatedIdUnico)
+          
+          if (updateError) {
+            console.error("Erro ao atualizar no banco:", updateError)
+            return NextResponse.json({ 
+              error: "Erro ao salvar dados no banco",
+              details: updateError 
+            }, { status: 500 })
+          } else {
+            console.log("Dados atualizados com sucesso!")
+          }
+        } else {
+          console.log("Criando novo registro")
+          // Se não existe, fazer INSERT
+          const { error: insertError } = await supabase
+            .from("brandplot")
+            .insert(insertData)
+
+          if (insertError) {
+            console.error("Erro ao inserir no banco:", insertError)
+            return NextResponse.json({ 
+              error: "Erro ao salvar dados no banco",
+              details: insertError 
+            }, { status: 500 })
+          } else {
+            console.log("Dados inseridos com sucesso!")
+          }
+        }
+
+        // *** EXECUTAR BUSCA DE CONTEXTO GEMINI EM PARALELO PARA ONBOARDING ***
+        if (companyName && process.env.GEMINI_API_KEY) {
+          console.log("Iniciando busca de contexto Gemini para onboarding...")
+          // Buscar contexto com Gemini de forma assíncrona (não bloqueia a resposta)
+          fetchCompanyContextGemini(companyName, generatedIdUnico, supabase)
+            .catch(error => {
+              console.error("Erro na busca de contexto Gemini no onboarding:", error)
+            })
+        } else {
+          console.log("Busca de contexto Gemini pulada - Gemini API Key:", !!process.env.GEMINI_API_KEY, "Company Name:", companyName)
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          analysis,
+          idUnico: generatedIdUnico,
+          scoreDiagnostico: extractedScore
+        })
         
-        // Se não conseguiu fazer parse, manter o formato original
-        parsedAnalysis = null
-        scoreDiagnostico = scoreDiagnostico || "0"
-      }
-      
-      // Atualizar o objeto dbData com o score extraído
-      dbData.scoreDiagnostico = scoreDiagnostico
-      
-      // Salvar a análise no formato apropriado (JSON ou texto)
-      dbData.diagnostico = parsedAnalysis ? JSON.stringify(parsedAnalysis) : analysis
-
-      // Salvar no Supabase
-      try {
-        await supabase.from("brandplot").insert([dbData]);
-      } catch (supabaseError) {
-        console.error("Erro ao salvar no Supabase:", supabaseError);
-        // Continua o fluxo mesmo com erro no Supabase
-      }
-
-      // Buscar contexto da empresa de forma assíncrona (não bloqueia a resposta)
-      if (answers[0]) {
-        // fetchCompanyContext(answers[0], idUnico, supabase).catch(error => {
-        //   console.error("Erro ao buscar contexto da empresa:", error);
-        // });
-        fetchCompanyContextGemini(answers[0], idUnico, supabase).catch(error => {
-          console.error("Erro ao buscar contexto da empresa (Gemini):", error);
-        });
-      }
-
-      return NextResponse.json({
-        analysis: parsedAnalysis || analysis, // Retorna JSON estruturado se disponível, senão texto original
-        analysisText: analysis, // Mantém o texto original também para compatibilidade
-        parsedAnalysis: parsedAnalysis, // JSON estruturado se disponível
-        idUnico: idUnico,
-        scoreDiagnostico: scoreDiagnostico
-      })
-    } catch (openaiError: any) {
-      console.error("OpenAI API error:", {
-        message: openaiError.message,
-        type: openaiError.type,
-        code: openaiError.code,
-        status: openaiError.status,
-      })
-
-      // Return a more specific error based on the OpenAI error
-      if (openaiError.status === 401) {
-        return NextResponse.json({ error: "Invalid OpenAI API key" }, { status: 500 })
-      } else if (openaiError.status === 429) {
-        return NextResponse.json({ error: "OpenAI API rate limit exceeded" }, { status: 429 })
-      } else {
-        return NextResponse.json({ error: "Failed to generate analysis" }, { status: 500 })
+      } catch (error) {
+        console.error("Erro no processamento do onboarding:", error)
+        return NextResponse.json({ 
+          error: "Erro ao processar análise inicial" 
+        }, { status: 500 })
       }
     }
-  } catch (error: any) {
-    console.error("General error in API route:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+
+    // FLUXO 2: GERAÇÃO DE ESTRATÉGIA - Requer idUnico
+    if (!idUnico) {
+      return NextResponse.json({ error: "idUnico é obrigatório para gerar estratégia" }, { status: 400 })
+    }
+
+    // Buscar diagnóstico do usuário
+    const { data, error } = await supabase
+      .from("brandplot")
+      .select("diagnostico, nome_empresa")
+      .eq("idUnico", idUnico)
+      .single()
+    if (error || !data || !data.diagnostico) {
+      return NextResponse.json({ error: "Diagnóstico não encontrado" }, { status: 404 })
+    }
+
+    // Extrair nome da empresa do banco
+    const companyName = data.nome_empresa || ""
+
+    // Montar prompt para o assistant
+    const prompt = `Com base no seguinte diagnóstico de marca, gere uma estratégia detalhada no formato JSON abaixo.\n\nDIAGNÓSTICO:\n${data.diagnostico}\n\nFormato de resposta esperado:\n{\n  \"marcaDesejada\": {\n    \"percepcaoDesejada\": \"\",\n    \"direcaoComunicacao\": \"\",\n    \"proximoPassoSugerido\": \"\"\n  },\n  \"reposicionamentoCriativo\": {\n    \"ideiasPraticas\": [\"\", \"\", \"\"],\n    \"novasFormasDeComunicar\": {\n      \"voz\": \"\",\n      \"estilo\": \"\",\n      \"canais\": [\"\"]\n    },\n    \"briefingVisual\": {\n      \"paleta\": \"\",\n      \"simbolos\": \"\",\n      \"estilo\": \"\"\n    }\n  },\n  \"conexaoComNovosClientes\": {\n    \"acoesParaAtrair\": [\"\"],\n    \"rituaisEComunidade\": \"\"\n  },\n  \"planoDeAcaoEstrategico\": {\n    \"pilaresConteudo\": [\"\"],\n    \"campanhas\": [\"\"],\n    \"acoesInternas\": [\"\"],\n    \"acoesExternas\": [\"\"]\n  },\n  \"calendarioEditorial\": [\n    {\n      \"semana\": \"\",\n      \"ideiasDeConteudo\": [\"\"]\n    }\n  ],\n  \"novaBioInstagram\": \"\"\n}`
+
+    // Configuração do OpenAI
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: "OpenAI API key não configurada" }, { status: 500 })
+    }
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+    // Criar thread e enviar mensagem
+    const thread = await openai.beta.threads.create()
+    await openai.beta.threads.messages.create(thread.id, {
+      role: "user",
+      content: prompt
+    })
+    
+    // Executar o Assistant de Estratégia
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: "asst_BuhlDfpMgLtxqxNnMcC3alD7"
+    })
+
+    // Aguardar conclusão do GPT Assistant
+    let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+    while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id)
+    }
+    if (runStatus.status !== 'completed') {
+      return NextResponse.json({ error: "Falha ao gerar estratégia" }, { status: 500 })
+    }
+    // Buscar resposta
+    const messages = await openai.beta.threads.messages.list(thread.id)
+    const assistantMessage = messages.data.find(msg => msg.role === 'assistant')
+    if (!assistantMessage || !assistantMessage.content || !assistantMessage.content[0]) {
+      return NextResponse.json({ error: "Nenhuma resposta gerada" }, { status: 500 })
+    }
+    const strategyText = (assistantMessage.content[0] as any).text?.value
+    if (!strategyText) {
+      return NextResponse.json({ error: "Resposta vazia do assistant" }, { status: 500 })
+    }
+    // Parsear JSON
+    let parsedStrategy
+    try {
+      const cleaned = strategyText.trim().replace(/^```json\s*|\s*```$/g, '')
+      parsedStrategy = JSON.parse(cleaned)
+    } catch (e) {
+      return NextResponse.json({ error: "Erro ao parsear JSON da estratégia" }, { status: 500 })
+    }
+    // Salvar no banco
+    await supabase
+      .from("brandplot")
+      .update({ estrategia: JSON.stringify(parsedStrategy) })
+      .eq("idUnico", idUnico)
+    // Retornar estratégia
+    return NextResponse.json({ success: true, estrategia: parsedStrategy })
+  } catch (err: any) {
+    return NextResponse.json({ error: "Erro interno no servidor", details: err?.message }, { status: 500 })
   }
 }
