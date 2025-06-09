@@ -5,10 +5,44 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_FIGMA_KEY
 });
 
+// Função para adicionar headers CORS
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+// Handler para OPTIONS (preflight)
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders(),
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { tipo, conteudo, configuracao } = await req.json();
 
+    // Verificar se a chave da OpenAI está configurada
+    if (!process.env.OPENAI_FIGMA_KEY) {
+      return NextResponse.json(
+        {
+          sucesso: false,
+          erro: 'Chave da OpenAI não configurada',
+          timestamp: new Date().toISOString()
+        },
+        { 
+          status: 500,
+          headers: corsHeaders()
+        }
+      );
+    }
+
+    console.log('🔍 DEBUG - Dados recebidos:', { tipo, conteudo, configuracao });
+    console.log('🔍 DEBUG - Chave OpenAI configurada:', process.env.OPENAI_FIGMA_KEY ? 'SIM' : 'NÃO');
     let prompt = '';
     
     // Definindo diferentes tipos de conteúdo que o plugin pode gerar
@@ -85,7 +119,10 @@ Seja criativo e engajante.
           erro: 'Nenhum conteúdo foi gerado',
           timestamp: new Date().toISOString()
         },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: corsHeaders()
+        }
       );
     }
     
@@ -96,8 +133,16 @@ Seja criativo e engajante.
       const blocos = textoGerado
         .split('\n')
         .map(l => l.trim())
-        .filter(l => l.toLowerCase().startsWith('texto'));
-      resultado = { blocos, textoCompleto: textoGerado };
+        .filter(l => l.length > 0 && (l.toLowerCase().startsWith('texto') || /^texto\s*\d+/.test(l.toLowerCase())))
+        .map(l => l.replace(/^texto\s*\d+\s*[-:]\s*/i, '').trim());
+      
+      // Se não encontrou blocos no formato esperado, dividir por linhas não vazias
+      if (blocos.length === 0) {
+        const linhas = textoGerado.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        resultado = { blocos: linhas.slice(0, 17), textoCompleto: textoGerado };
+      } else {
+        resultado = { blocos, textoCompleto: textoGerado };
+      }
     } else if (tipo === 'stories') {
       const stories = textoGerado
         .split('\n')
@@ -108,11 +153,15 @@ Seja criativo e engajante.
       resultado = { conteudo: textoGerado };
     }
 
+    console.log('🔍 DEBUG - Resultado processado:', resultado);
+
     return NextResponse.json({
       sucesso: true,
       tipo,
       resultado,
       timestamp: new Date().toISOString()
+    }, {
+      headers: corsHeaders()
     });
 
   } catch (error: any) {
@@ -125,7 +174,10 @@ Seja criativo e engajante.
         detalhe: error?.response?.data || error.message,
         timestamp: new Date().toISOString()
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: corsHeaders()
+      }
     );
   }
 } 
