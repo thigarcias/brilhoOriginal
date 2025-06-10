@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { BrandplotCache } from "@/lib/brandplot-cache"
+import { AuthManager } from "@/lib/auth-utils"
 import DiagnosticoCompleto from "../../../components/brilho-original/diagnostico-completo"
 
 function DiagnosticoContent() {
@@ -15,19 +16,10 @@ function DiagnosticoContent() {
 
   // Função para recuperar o idUnico
   const getIdUnico = () => {
-    // Primeiro tenta pegar dos dados do usuário logado
-    if (typeof window !== "undefined") {
-      const storedUser = localStorage.getItem("user")
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser)
-          if (user.idUnico) {
-            return user.idUnico
-          }
-        } catch (e) {
-          console.error("Erro ao parsear dados do usuário:", e)
-        }
-      }
+    // Primeiro tenta pegar dos dados do usuário logado usando AuthManager
+    const user = AuthManager.getUser()
+    if (user?.idUnico) {
+      return user.idUnico
     }
 
     // Segundo, tenta pegar do BrandplotCache

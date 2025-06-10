@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { BrandplotCache } from "@/lib/brandplot-cache"
+import { AuthManager } from "@/lib/auth-utils"
 import DiagnosticoCompleto from "../../components/brilho-original/diagnostico-completo"
 
 function DiagnosticoContent() {
@@ -42,18 +43,11 @@ function DiagnosticoContent() {
   }, [])
 
   const handleBack = () => {
-    // Verificar se o usuário está realmente logado
-    const storedUser = localStorage.getItem("user")
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser)
-        if (user.idUnico) {
-          router.push("/dashboard")
-          return
-        }
-      } catch (e) {
-        console.error("Erro ao verificar usuário:", e)
-      }
+    // Verificar se o usuário está realmente logado usando AuthManager
+    const user = AuthManager.getUser()
+    if (user?.idUnico) {
+      router.push("/dashboard")
+      return
     }
     
     // Se não está logado, voltar para a homepage

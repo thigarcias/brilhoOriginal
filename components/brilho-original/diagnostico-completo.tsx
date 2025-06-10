@@ -7,6 +7,7 @@ import Image from "next/image"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import ScoreCounter from "../ScoreCounter"
+import { AuthManager } from "@/lib/auth-utils"
 
 interface BrandData {
   nome_empresa: string | null
@@ -68,17 +69,8 @@ export default function DiagnosticoCompleto({ brandData, onBack }: DiagnosticoCo
   // Verificar se é usuário logado ou do onboarding
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedUser = localStorage.getItem("user")
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser)
-          setIsLoggedUser(!!user.idUnico)
-        } catch (e) {
-          setIsLoggedUser(false)
-        }
-      } else {
-        setIsLoggedUser(false)
-      }
+      const user = AuthManager.getUser()
+      setIsLoggedUser(!!user?.idUnico)
     }
   }, [])
   const contactData = JSON.stringify({

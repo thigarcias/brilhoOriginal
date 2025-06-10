@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
 import { GoogleGenAI } from '@google/genai'
+import { getRealIP, checkRateLimit } from "@/lib/rate-limiter"
 
 // Função assíncrona para buscar contexto da empresa usando Responses API
 async function fetchCompanyContext(companyName: string, idUnico: string, supabase: any) {
@@ -230,6 +231,34 @@ async function fetchCompanyContextGemini(companyName: string, idUnico: string, s
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting: verificar se o IP excedeu o limite de requisições
+    const clientIP = getRealIP(request)
+    const rateLimitResult = checkRateLimit(clientIP)
+    
+    if (!rateLimitResult.allowed) {
+      const resetDate = new Date(rateLimitResult.resetTime)
+      const remainingTimeMinutes = Math.ceil((rateLimitResult.resetTime - Date.now()) / (1000 * 60))
+      
+      console.log(`Rate limit excedido para IP ${clientIP}. Reset em: ${resetDate.toISOString()}`)
+      
+      return NextResponse.json({ 
+        error: "Limite de diagnósticos excedido", 
+        message: `Você já criou 3 diagnósticos. Tente novamente em ${remainingTimeMinutes} minutos.`,
+        resetTime: rateLimitResult.resetTime,
+        rateLimitExceeded: true
+      }, { 
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': '3',
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+          'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+        }
+      })
+    }
+    
+    console.log(`Requisição permitida para IP ${clientIP}. Requisições restantes: ${rateLimitResult.remaining}`)
+    
     const body = await request.json()
     const { idUnico, bioBtImageUrl, answers } = body
     
@@ -448,6 +477,12 @@ RESPOSTAS:
           analysis,
           idUnico: generatedIdUnico,
           scoreDiagnostico: extractedScore
+        }, {
+          headers: {
+            'X-RateLimit-Limit': '3',
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+          }
         })
         
       } catch (error) {
@@ -530,7 +565,13 @@ RESPOSTAS:
       .update({ estrategia: JSON.stringify(parsedStrategy) })
       .eq("idUnico", idUnico)
     // Retornar estratégia
-    return NextResponse.json({ success: true, estrategia: parsedStrategy })
+    return NextResponse.json({ success: true, estrategia: parsedStrategy }, {
+      headers: {
+        'X-RateLimit-Limit': '3',
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+      }
+    })
   } catch (err: any) {
     return NextResponse.json({ error: "Erro interno no servidor", details: err?.message }, { status: 500 })
   }

@@ -508,14 +508,31 @@ O próximo passo é criar uma narrativa mais forte que conecte sua motivação o
       if (!response.ok) {
         // Try to get error details from response
         let errorMessage = `API responded with status: ${response.status}`
+        let isRateLimited = false
+        
         try {
           const errorData = await response.json()
           if (errorData.error) {
             errorMessage = errorData.error
           }
+          if (errorData.message) {
+            errorMessage = errorData.message
+          }
+          if (errorData.rateLimitExceeded || response.status === 429) {
+            isRateLimited = true
+          }
         } catch (e) {
           // If we can't parse the error response, use the status
         }
+        
+        // Para rate limiting, mostrar mensagem especial e não usar fallback
+        if (isRateLimited) {
+          setError(errorMessage)
+          setIsLoading(false)
+          setCurrentStep(currentStep) // Voltar para o step anterior
+          return
+        }
+        
         throw new Error(errorMessage)
       }      const data = await response.json()
       console.log("API response data:", data)

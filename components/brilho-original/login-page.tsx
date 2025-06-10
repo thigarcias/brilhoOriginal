@@ -8,6 +8,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { BrandplotCache } from "@/lib/brandplot-cache"
+import { AuthManager } from "@/lib/auth-utils"
 import { useState, useEffect } from "react"
 import { Eye, EyeOff, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -210,13 +211,13 @@ export default function LoginPage() {
       const result = await response.json()
         if (response.ok) {
         console.log("Login realizado com sucesso:", result.user)
-        // Salva os dados do usuário no localStorage
-        localStorage.setItem('user', JSON.stringify(result.user))
+        
+        // Usa o AuthManager para salvar dados do usuário com controle de timestamp
+        AuthManager.setUser(result.user)
         
         // Salva o idUnico no cache para compatibilidade com o dashboard
         if (result.user.idUnico) {
-          localStorage.setItem('brandplot_idUnico', result.user.idUnico)
-            // Também atualiza o BrandplotCache
+          // Também atualiza o BrandplotCache
           BrandplotCache.set({
             idUnico: result.user.idUnico,
             companyName: result.user.company || "Empresa",

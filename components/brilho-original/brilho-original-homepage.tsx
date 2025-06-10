@@ -20,6 +20,7 @@ import {
   MessageSquareQuote,
 } from "lucide-react"
 import { BrandplotCache } from "@/lib/brandplot-cache"
+import { AuthManager } from "@/lib/auth-utils"
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -98,19 +99,13 @@ export default function BrilhoOriginalHomepage({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Verifica se há usuário realmente logado (com credenciais)
-      const storedUser = localStorage.getItem("user")
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser)
-          if (user.idUnico && user.company) {
-            setCompanyName(user.company)
-            setIsLogged(true)
-            return
-          }
-        } catch (e) {
-          console.error("Erro ao parsear dados do usuário:", e)
-        }
+      // Verifica se há usuário realmente logado usando o AuthManager
+      const user = AuthManager.getUser()
+      
+      if (user && user.idUnico && user.company) {
+        setCompanyName(user.company)
+        setIsLogged(true)
+        return
       }
       
       // Se não há usuário logado, mas há cache do questionário, apenas pega o nome
@@ -125,9 +120,8 @@ export default function BrilhoOriginalHomepage({
   }, [])
 
   const handleLogout = () => {
-    // Limpar dados do usuário logado
-    localStorage.removeItem("user")
-    localStorage.removeItem("brandplot_idUnico")
+    // Limpar dados do usuário logado usando o AuthManager
+    AuthManager.clearUser()
     BrandplotCache.clear()
     window.location.reload()
   }

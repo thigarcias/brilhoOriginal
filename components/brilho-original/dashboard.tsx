@@ -108,7 +108,17 @@ export default function Dashboard() {
         body: JSON.stringify({ idUnico })
       })
       if (!response.ok) {
-        throw new Error("Erro ao gerar estratégia")
+        if (response.status === 429) {
+          try {
+            const errorData = await response.json()
+            setErroEstrategia(errorData.message || "Limite de requisições excedido. Tente novamente mais tarde.")
+          } catch {
+            setErroEstrategia("Limite de requisições excedido. Tente novamente mais tarde.")
+          }
+        } else {
+          throw new Error("Erro ao gerar estratégia")
+        }
+        return
       }
       const result = await response.json()
       if (result.estrategia) {
@@ -401,12 +411,63 @@ export default function Dashboard() {
               </div>
             </motion.div>
 
+            {/* Card: Modelo de Voz IA */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+              className="bg-gradient-to-br from-orange-500/[0.12] to-orange-600/[0.04] backdrop-blur-sm border border-orange-500/20 rounded-2xl p-6 md:p-8 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500/20 to-orange-600/20 flex items-center justify-center border border-orange-500/30">
+                    <MessageCircle className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white">Modelo de Voz - BrandPlot</h2>
+                </div>
+                <span className="bg-gradient-to-r from-orange-500/15 to-orange-600/10 text-orange-300 text-xs font-medium px-3 py-1 rounded-full border border-orange-500/20">
+                  Beta
+                </span>
+              </div>
+              
+              <p className="text-white/80 mb-6 leading-relaxed">
+                Converse com nosso modelo de IA especializado sobre <span className="font-bold text-orange-300">{companyName}</span>. 
+                Faça perguntas sobre sua marca, explore insights e obtenha orientações personalizadas através de uma conversa intuitiva.
+              </p>
+
+              <div className="bg-gradient-to-r from-orange-500/10 to-orange-600/5 border border-orange-500/30 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Zap className="w-4 h-4 text-orange-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-orange-200 mb-1">O que você pode fazer:</h3>
+                    <ul className="text-sm text-orange-200/80 space-y-1">
+                      <li>• Discutir estratégias de posicionamento</li>
+                      <li>• Explorar oportunidades de mercado</li>
+                      <li>• Obter sugestões de melhorias</li>
+                      <li>• Esclarecer dúvidas sobre sua marca</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <Button asChild className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium border-0 px-8 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+                  <Link href="/voz" className="flex items-center gap-2">
+                    Iniciar conversa
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </div>
+            </motion.div>
+
             {/* Card: Guidelines (quando estratégia existe) */}
             {estrategia && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.6 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
                 className="bg-gradient-to-br from-[#c8b79e]/[0.15] to-[#c8b79e]/[0.05] backdrop-blur-sm border border-[#c8b79e]/20 rounded-2xl p-6 md:p-8 shadow-xl"
               >
                 <div className="flex items-center gap-3 mb-4">

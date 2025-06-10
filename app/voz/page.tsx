@@ -1,180 +1,484 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Mic, MicOff, Loader2 } from "lucide-react"
+import { Mic, MicOff, Loader2, Volume2 } from "lucide-react"
+import { BrandplotCache } from "@/lib/brandplot-cache"
+import { SharedHeader } from "@/components/SharedHeader"
 
-export default function VozRealtime() {
-  const [isSessionActive, setIsSessionActive] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+export default function VozOtimizada() {
+  const [isRecording, setIsRecording] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState("")
-  const [voiceEnabled, setVoiceEnabled] = useState(true)
-  const [checkingVoice, setCheckingVoice] = useState(true)
-  const peerConnection = useRef<RTCPeerConnection | null>(null)
-  const dataChannel = useRef<RTCDataChannel | null>(null)
-  const audioElement = useRef<HTMLAudioElement | null>(null)
-  const localStream = useRef<MediaStream | null>(null)
+  
+  // Estados para controle de áudio
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
+  
+  // Refs para controle
+  const mediaRecorder = useRef<MediaRecorder | null>(null)
+  const audioChunks = useRef<Blob[]>([])
+  const stream = useRef<MediaStream | null>(null)
+  const isMouseDown = useRef(false)
+  const recordingStartTime = useRef<number>(0)
+  
+  // Dados da empresa
+  const [companyName, setCompanyName] = useState<string>("Sua Marca")
+  const [companyData, setCompanyData] = useState<any>(null)
 
-  async function startSession() {
-    setIsLoading(true)
-    setError("")
-    try {
-      // 1. Pega o token de sessão
-      const tokenResponse = await fetch("/api/realtime-token")
-      const data = await tokenResponse.json()
-      if (!data.client_secret?.value) throw new Error("Token inválido")
-      const EPHEMERAL_KEY = data.client_secret.value
-
-      // 2. Cria conexão WebRTC
-      const pc = new RTCPeerConnection()
-
-      // 3. Prepara elemento de áudio para tocar resposta do modelo
-      if (!audioElement.current) {
-        audioElement.current = document.createElement("audio")
-        audioElement.current.autoplay = true
-      }
-      pc.ontrack = (e) => {
-        if (audioElement.current) {
-          audioElement.current.srcObject = e.streams[0];
-          audioElement.current.muted = false;
-          audioElement.current.volume = 1;
-          audioElement.current.play().catch(() => {});
+  // Carregar dados da empresa
+  useEffect(() => {
+    async function loadCompanyData() {
+      let idUnico = null
+      if (typeof window !== "undefined") {
+        const cache = BrandplotCache.get()
+        if (cache && cache.idUnico) {
+          idUnico = cache.idUnico
+        } else {
+          const storedId = localStorage.getItem("brandplot_idUnico")
+          if (storedId) idUnico = storedId
         }
       }
-
-      // 4. Captura microfone e adiciona track
-      localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true })
-      pc.addTrack(localStream.current.getTracks()[0])
-
-      // 5. Cria data channel para eventos
-      const dc = pc.createDataChannel("oai-events")
-      dataChannel.current = dc
-
-      // 6. SDP Offer
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-
-      // 7. Envia offer para o endpoint da OpenAI
-      const baseUrl = "https://api.openai.com/v1/realtime"
-      const model = "gpt-4o-mini-realtime-preview"
-      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
-        method: "POST",
-        body: offer.sdp,
-        headers: {
-          Authorization: `Bearer ${EPHEMERAL_KEY}`,
-          "Content-Type": "application/sdp",
-        },
-      })
-      const answerSdp = await sdpResponse.text()
-      const answer: RTCSessionDescriptionInit = {
-        type: "answer",
-        sdp: answerSdp,
+      
+      if (idUnico) {
+        try {
+          const response = await fetch(`/api/brand-data?idUnico=${encodeURIComponent(idUnico)}`)
+          if (response.ok) {
+            const result = await response.json()
+            if (result.success && result.data) {
+              setCompanyName(result.data.nome_empresa || "Sua Marca")
+              delete result.data.resposta_8
+              delete result.data.senha
+              delete result.data.telefone
+              delete result.data.updated_at
+              setCompanyData(result.data)
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao carregar dados da empresa:", error)
+        }
       }
-      await pc.setRemoteDescription(answer)
+    }
+    loadCompanyData()
+  }, [])
 
-      // 8. Eventos do data channel
-      dc.addEventListener("message", (e) => {
-        const event = JSON.parse(e.data)
-      })
-      dc.addEventListener("open", () => {
-        setIsSessionActive(true)
-      })
-      dc.addEventListener("close", () => {
-        setIsSessionActive(false)
-      })
+  // Iniciar gravação (pressionar e manter)
+  const handleMouseDown = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (isProcessing || isPlaying) return
+    
+    isMouseDown.current = true
+    await startRecording()
+  }
 
-      peerConnection.current = pc
+  // Parar gravação (soltar botão)
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!isMouseDown.current) return
+    
+    isMouseDown.current = false
+    stopRecording()
+  }
+
+  // Handlers para touch (mobile)
+  const handleTouchStart = async (e: React.TouchEvent) => {
+    e.preventDefault()
+    if (isProcessing || isPlaying) return
+    
+    isMouseDown.current = true
+    await startRecording()
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault()
+    if (!isMouseDown.current) return
+    
+    isMouseDown.current = false
+    stopRecording()
+  }
+
+  // Iniciar gravação
+  const startRecording = async () => {
+    try {
+      setError("")
+      recordingStartTime.current = Date.now()
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000
+        } 
+      })
+      
+      stream.current = mediaStream
+      audioChunks.current = []
+      
+      const recorder = new MediaRecorder(mediaStream, {
+        mimeType: 'audio/webm;codecs=opus'
+      })
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.current.push(event.data)
+        }
+      }
+      
+      recorder.onstop = async () => {
+        const recordingDuration = Date.now() - recordingStartTime.current
+        const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' })
+        
+        // Verificar duração mínima (500ms)
+        if (recordingDuration < 500) {
+          setError("Gravação muito rápida. Mantenha pressionado por mais tempo.")
+          setTimeout(() => setError(""), 3000)
+          return
+        }
+        
+        if (audioBlob.size > 1000) {
+          await processAudio(audioBlob)
+        } else {
+          setError("Gravação muito curta. Tente novamente.")
+          setTimeout(() => setError(""), 3000)
+        }
+      }
+      
+      mediaRecorder.current = recorder
+      recorder.start()
+      setIsRecording(true)
+      
     } catch (err: any) {
-      setError("Erro ao iniciar sessão: " + (err?.message || err))
-      stopSession()
-    } finally {
-      setIsLoading(false)
+      setError("Erro ao acessar microfone: " + (err?.message || err))
     }
   }
 
-  function stopSession() {
-    try {
-      if (dataChannel.current) {
-        dataChannel.current.close()
-      }
-      if (peerConnection.current) {
-        peerConnection.current.getSenders().forEach((sender) => {
-          if (sender.track) sender.track.stop()
-        })
-        peerConnection.current.close()
-      }
-      if (localStream.current) {
-        localStream.current.getTracks().forEach((track) => track.stop())
-      }
-      setIsSessionActive(false)
-      dataChannel.current = null
-      peerConnection.current = null
-      localStream.current = null
-    } catch {}
+  // Parar gravação
+  const stopRecording = () => {
+    if (mediaRecorder.current && isRecording) {
+      mediaRecorder.current.stop()
+      setIsRecording(false)
+      setIsProcessing(true)
+    }
+    
+    if (stream.current) {
+      stream.current.getTracks().forEach(track => track.stop())
+      stream.current = null
+    }
   }
 
-  useEffect(() => {
-    // Checa status do modo de voz ao carregar a página
-    fetch("/api/voice-mode/status")
-      .then(res => res.json())
-      .then(data => {
-        setVoiceEnabled(data.enabled)
-        setCheckingVoice(false)
-      })
-      .catch(() => {
-        setVoiceEnabled(false)
-        setCheckingVoice(false)
-      })
-  }, [])
+  // Processar áudio usando arquitetura chained
+  const processAudio = async (audioBlob: Blob) => {
+    try {
+      setError("")
+      
+      // Transcrição
+      const transcriptionResponse = await transcribeAudio(audioBlob)
+      if (!transcriptionResponse.success) {
+        throw new Error(transcriptionResponse.error || "Erro na transcrição")
+      }
+      
+      const userText = transcriptionResponse.text
+      
+      if (!userText || userText.trim().length < 3) {
+        setError("Não consegui entender. Tente falar mais claramente.")
+        setTimeout(() => setError(""), 3000)
+        return
+      }
+      
+      // Processamento LLM
+      const llmResponse = await processWithLLM(userText)
+      if (!llmResponse.success) {
+        throw new Error(llmResponse.error || "Erro no processamento")
+      }
+      
+      const assistantText = llmResponse.text
+      
+      // Síntese de voz
+      const ttsResponse = await generateSpeech(assistantText)
+      if (!ttsResponse.success) {
+        throw new Error(ttsResponse.error || "Erro na síntese de voz")
+      }
+      
+      // Reproduzir áudio
+      if (ttsResponse.audioUrl) {
+        playAudio(ttsResponse.audioUrl)
+      }
+      
+    } catch (err: any) {
+      setError("Erro no processamento: " + (err?.message || err))
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
+  // Transcrever áudio
+  const transcribeAudio = async (audioBlob: Blob) => {
+    const formData = new FormData()
+    formData.append('audio', audioBlob, 'audio.webm')
+    
+    const response = await fetch('/api/voice/transcribe', {
+      method: 'POST',
+      body: formData
+    })
+    
+    return await response.json()
+  }
+
+  // Processar com LLM
+  const processWithLLM = async (userText: string) => {
+    const response = await fetch('/api/voice/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        message: userText,
+        companyData: companyData,
+        companyName: companyName
+      })
+    })
+    
+    return await response.json()
+  }
+
+  // Gerar síntese de voz
+  const generateSpeech = async (text: string) => {
+    const response = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        text: text,
+        voice: 'nova',
+        model: 'gpt-4o-mini-tts',
+        speed: 1.0
+      })
+    })
+    
+    return await response.json()
+  }
+
+  // Reproduzir áudio
+  const playAudio = (audioUrl: string) => {
+    if (currentAudio) {
+      currentAudio.pause()
+      currentAudio.currentTime = 0
+    }
+    
+    const audio = new Audio(audioUrl)
+    audio.onplay = () => {
+      setIsPlaying(true)
+    }
+    
+    audio.onended = () => {
+      setIsPlaying(false)
+      setCurrentAudio(null)
+    }
+    
+    audio.onerror = () => {
+      setError("Erro ao reproduzir áudio")
+      setIsPlaying(false)
+      setCurrentAudio(null)
+    }
+    
+    setCurrentAudio(audio)
+    audio.play()
+  }
+
+  // Pausar áudio atual
+  const pauseAudio = () => {
+    if (currentAudio) {
+      currentAudio.pause()
+      setIsPlaying(false)
+    }
+  }
+
+  // Reiniciar
+  const reset = () => {
+    setError("")
+    if (currentAudio) {
+      currentAudio.pause()
+      setCurrentAudio(null)
+    }
+    setIsPlaying(false)
+    
+    if (isRecording) {
+      stopRecording()
+    }
+  }
+
+  // Cleanup
   useEffect(() => {
     return () => {
-      stopSession()
+      if (stream.current) {
+        stream.current.getTracks().forEach(track => track.stop())
+      }
+      if (currentAudio) {
+        currentAudio.pause()
+      }
     }
   }, [])
 
+  // Estado do botão
+  const getButtonState = () => {
+    if (isRecording) return { 
+      bg: 'bg-red-500 hover:bg-red-600 active:bg-red-700', 
+      ring: 'focus:ring-red-400/40', 
+      pulse: 'animate-pulse',
+      icon: MicOff 
+    }
+    if (isProcessing) return { 
+      bg: 'bg-yellow-500', 
+      ring: 'focus:ring-yellow-400/40', 
+      pulse: 'animate-spin',
+      icon: Loader2
+    }
+    if (isPlaying) return { 
+      bg: 'bg-green-500 hover:bg-green-600', 
+      ring: 'focus:ring-green-400/40', 
+      pulse: 'animate-pulse',
+      icon: Volume2
+    }
+    return { 
+      bg: 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700', 
+      ring: 'focus:ring-orange-400/40', 
+      pulse: '',
+      icon: Mic 
+    }
+  }
+
+  const buttonState = getButtonState()
+  const IconComponent = buttonState.icon
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#1a1814] text-white p-2 sm:p-4">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 md:mb-4 text-center drop-shadow-lg tracking-tight">
-        Assistente de Voz da BrandPlot
-      </h1>
-      <div className="mb-4 sm:mb-6 md:mb-8 max-w-xs sm:max-w-md md:max-w-xl w-full flex flex-col items-center">
-        <div className="w-full bg-gradient-to-r from-[#23201a]/60 to-[#2c261b]/60 rounded-xl p-3 sm:p-4 md:p-6 mb-2 shadow-lg border border-[#c8b79e]/10">
-          <p className="text-sm sm:text-base md:text-lg text-[#fde68a] font-semibold text-center">
-            Impulsione sua marca e crie insights utilizando a potência da inteligência artificial e a expertise do Vicgario Brandstudio.
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814]">
+      {/* Background elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.05] via-transparent to-amber-700/[0.05] blur-3xl" />
+      
+      {/* Decorative shapes */}
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-500/[0.05] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-amber-700/[0.05] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+
+      {/* Sound waves durante gravação */}
+      {isRecording && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="flex space-x-2">
+            {[...Array(7)].map((_, i) => (
+              <div
+                key={i}
+                className="w-1 bg-red-400/60 rounded-full animate-pulse"
+                style={{
+                  height: `${50 + Math.sin(Date.now() * 0.015 + i) * 40}px`,
+                  animationDelay: `${i * 0.1}s`,
+                  animationDuration: '0.6s'
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="relative z-10">
+        <SharedHeader companyName={companyName} />
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center text-white p-8">
+        
+        {/* Título */}
+        <div className="text-center mb-16 max-w-2xl">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+            Assistente de Voz BrandPlot
+          </h1>
+          <p className="text-xl text-white/80 mb-4">
+            Especialista em branding e estratégia de marca
+          </p>
+          <p className="text-sm text-orange-300 font-medium">
+            Focado em insights personalizados para <span className="text-orange-400 font-bold">{companyName}</span>
           </p>
         </div>
-        <p className="text-white/80 text-xs sm:text-sm md:text-base text-center italic">
-          Converse em tempo real com nosso agente de branding usando a sua voz.<br />
-          <span className="not-italic font-medium text-white/90">Para começar, clique no botão de microfone e fale "Olá!"</span>
-        </p>
-      </div>
-      <div className="flex flex-col items-center gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8">
-        {checkingVoice ? (
-          <div className="text-white/60 text-sm mb-2">Verificando disponibilidade do modo de voz...</div>
-        ) : !voiceEnabled ? (
-          <div className="bg-yellow-700/20 text-yellow-300 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-sm sm:text-base text-center max-w-xs">
-            O modo de voz está desativado no momento. Tente novamente mais tarde.
+
+        {/* Botão principal */}
+        <div className="flex flex-col items-center space-y-8">
+          
+          <div className="relative">
+            {/* Círculos de onda */}
+            {(isRecording || isPlaying) && (
+              <>
+                <div className="absolute inset-0 rounded-full border-2 border-orange-400/30 animate-ping scale-110"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-orange-400/20 animate-ping scale-125" style={{ animationDelay: '0.5s' }}></div>
+                <div className="absolute inset-0 rounded-full border-2 border-orange-400/10 animate-ping scale-150" style={{ animationDelay: '1s' }}></div>
+              </>
+            )}
+            
+            <button
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp} // Para casos onde o mouse sai do botão
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              disabled={isProcessing}
+              className={`w-36 h-36 rounded-full flex items-center justify-center transition-all text-white text-3xl shadow-2xl focus:ring-8 outline-none duration-200 transform hover:scale-105 active:scale-95 ${buttonState.bg} ${buttonState.ring} ${buttonState.pulse} ${isProcessing ? 'cursor-not-allowed' : 'cursor-pointer'} select-none`}
+            >
+              <IconComponent className="w-18 h-18" />
+            </button>
           </div>
-        ) : !isSessionActive ? (
-          <button
-            onClick={startSession}
-            disabled={isLoading}
-            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center bg-[#c8b79e] hover:bg-[#d0c0a8] transition-all text-white text-lg sm:text-xl md:text-2xl shadow-xl hover:shadow-2xl focus:ring-4 focus:ring-[#c8b79e]/40 outline-none duration-200"
-          >
-            {isLoading ? <Loader2 className="animate-spin w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" /> : <Mic className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />}
-          </button>
-        ) : (
-          <button
-            onClick={stopSession}
-            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-700 transition-all text-white text-lg sm:text-xl md:text-2xl shadow-xl hover:shadow-2xl focus:ring-4 focus:ring-red-400/40 outline-none duration-200"
-          >
-            <MicOff className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />
-          </button>
-        )}
-        <audio ref={audioElement} hidden />
+
+          {/* Status */}
+          <div className="text-center h-12">
+            <p className="text-lg font-medium text-white/90">
+              {!isRecording && !isProcessing && !isPlaying && "Pressione e mantenha para falar"}
+              {isRecording && "Falando... (solte para processar)"}
+              {isProcessing && "Processando..."}
+              {isPlaying && "Reproduzindo resposta"}
+            </p>
+          </div>
+
+          {/* Controles */}
+          {(error || isPlaying) && (
+            <div className="flex flex-col items-center space-y-4">
+              {isPlaying && (
+                <button
+                  onClick={pauseAudio}
+                  className="px-6 py-3 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 rounded-xl transition-colors text-sm text-orange-300"
+                >
+                  Pausar
+                </button>
+              )}
+              
+              {error && (
+                <button
+                  onClick={reset}
+                  className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors text-sm text-white/80 hover:text-white"
+                >
+                  Tentar Novamente
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Erro */}
+          {error && (
+            <div className="max-w-md">
+              <div className="bg-red-500/10 text-red-400 p-4 rounded-xl text-sm text-center border border-red-500/20">
+                {error}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Instruções */}
+        <div className="mt-16 text-center text-white/60 text-sm max-w-xl">
+          <p>
+            Pressione e mantenha o botão pressionado enquanto fala sua pergunta sobre branding, 
+            estratégia de marca ou qualquer dúvida sobre <span className="text-orange-300">{companyName}</span>.
+          </p>
+        </div>
+
       </div>
-      {error && <div className="bg-red-500/10 text-red-400 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-sm sm:text-base">{error}</div>}
-      <a href="/" className="text-white/60 hover:text-white underline text-sm sm:text-base">Voltar para o início</a>
     </div>
   )
 }
