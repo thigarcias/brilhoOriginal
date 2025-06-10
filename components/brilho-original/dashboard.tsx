@@ -423,7 +423,7 @@ export default function Dashboard() {
                   <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500/20 to-orange-600/20 flex items-center justify-center border border-orange-500/30">
                     <MessageCircle className="w-6 h-6 text-orange-400" />
                   </div>
-                  <h2 className="text-xl md:text-2xl font-bold text-white">Modelo de Voz - BrandPlot</h2>
+                  <h2 className="text-xl md:text-2xl font-bold text-white">Assistente de IA - BrandPlot</h2>
                 </div>
                 <span className="bg-gradient-to-r from-orange-500/15 to-orange-600/10 text-orange-300 text-xs font-medium px-3 py-1 rounded-full border border-orange-500/20">
                   Beta

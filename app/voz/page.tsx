@@ -1,30 +1,73 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Mic, MicOff, Loader2, Volume2 } from "lucide-react"
+import { Mic, MicOff, Send, Play, Pause, Volume2, Loader2, MessageSquare, Headphones, Globe, Search, ChevronDown, Settings, Sparkles, Zap } from "lucide-react"
 import { BrandplotCache } from "@/lib/brandplot-cache"
 import { SharedHeader } from "@/components/SharedHeader"
+import ReactMarkdown from 'react-markdown'
+
+interface Message {
+  id: string
+  type: 'user' | 'assistant'
+  content: string
+  mode: 'text' | 'voice'
+  audioUrl?: string
+  timestamp: Date
+  isPlaying?: boolean
+  webSearchUsed?: boolean
+}
+
+interface ProcessingStage {
+  stage: 'transcribing' | 'processing' | 'searching' | 'generating' | 'complete'
+  label: string
+  icon: React.ComponentType<any>
+}
 
 export default function VozOtimizada() {
+  // Estados principais
+  const [messages, setMessages] = useState<Message[]>([])
+  const [inputText, setInputText] = useState("")
   const [isRecording, setIsRecording] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentProcessingStage, setCurrentProcessingStage] = useState<ProcessingStage | null>(null)
   const [error, setError] = useState("")
-  const [processingStage, setProcessingStage] = useState("")
+  
+  // Estado para busca na web
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false)
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false)
   
   // Estados para controle de áudio
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
   
   // Refs para controle
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const audioChunks = useRef<Blob[]>([])
   const stream = useRef<MediaStream | null>(null)
-  const isMouseDown = useRef(false)
   const recordingStartTime = useRef<number>(0)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
   
   // Dados da empresa
   const [companyName, setCompanyName] = useState<string>("Sua Marca")
   const [companyData, setCompanyData] = useState<any>(null)
+
+  // Estágios de processamento
+  const processingStages: ProcessingStage[] = [
+    { stage: 'transcribing', label: 'Transcrevendo áudio...', icon: Headphones },
+    { stage: 'processing', label: 'Processando resposta...', icon: MessageSquare },
+    { stage: 'searching', label: 'Buscando na web...', icon: Search },
+    { stage: 'generating', label: 'Gerando áudio...', icon: Volume2 },
+  ]
+
+  // Scroll automático para última mensagem
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   // Carregar dados da empresa
   useEffect(() => {
@@ -62,42 +105,71 @@ export default function VozOtimizada() {
     loadCompanyData()
   }, [])
 
-  // Iniciar gravação (pressionar e manter)
-  const handleMouseDown = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (isProcessing || isPlaying) return
+  // Adicionar mensagem
+  const addMessage = (content: string, type: 'user' | 'assistant', mode: 'text' | 'voice', audioUrl?: string, webSearchUsed?: boolean) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      type,
+      content,
+      mode,
+      audioUrl,
+      timestamp: new Date(),
+      isPlaying: false,
+      webSearchUsed
+    }
     
-    isMouseDown.current = true
-    await startRecording()
+    setMessages(prev => [...prev, newMessage])
+    return newMessage.id
   }
 
-  // Parar gravação (soltar botão)
-  const handleMouseUp = (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (!isMouseDown.current) return
+  // Enviar mensagem de texto
+  const sendTextMessage = async () => {
+    if (!inputText.trim() || isProcessing) return
     
-    isMouseDown.current = false
-    stopRecording()
+    const messageContent = inputText.trim()
+    setInputText("")
+    
+    // Adicionar mensagem do usuário
+    addMessage(messageContent, 'user', 'text')
+    
+    try {
+      setIsProcessing(true)
+      
+      // Mostrar estágio correto baseado na busca na web
+      if (webSearchEnabled) {
+        setCurrentProcessingStage(processingStages[2]) // searching
+      } else {
+      setCurrentProcessingStage(processingStages[1]) // processing
+      }
+      
+      // Processar com LLM (modo texto)
+      const llmResponse = await processWithLLM(messageContent, 'text')
+      if (!llmResponse.success) {
+        throw new Error(llmResponse.error || "Erro no processamento")
+      }
+      
+      // Adicionar resposta da IA
+      addMessage(llmResponse.text, 'assistant', 'text', undefined, llmResponse.webSearchUsed)
+      
+    } catch (err: any) {
+      setError("Erro no processamento: " + (err?.message || err))
+      setTimeout(() => setError(""), 5000)
+    } finally {
+      setIsProcessing(false)
+      setCurrentProcessingStage(null)
+    }
   }
 
-  // Handlers para touch (mobile)
-  const handleTouchStart = async (e: React.TouchEvent) => {
-    e.preventDefault()
-    if (isProcessing || isPlaying) return
-    
-    isMouseDown.current = true
-    await startRecording()
+  // Alternar gravação de voz (iniciar/parar)
+  const toggleRecording = async () => {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      await startRecording()
+    }
   }
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault()
-    if (!isMouseDown.current) return
-    
-    isMouseDown.current = false
-    stopRecording()
-  }
-
-  // Iniciar gravação
+  // Iniciar gravação de voz
   const startRecording = async () => {
     try {
       setError("")
@@ -131,13 +203,13 @@ export default function VozOtimizada() {
         
         // Verificar duração mínima (500ms)
         if (recordingDuration < 500) {
-          setError("Gravação muito rápida. Mantenha pressionado por mais tempo.")
+          setError("Gravação muito rápida. Tente novamente.")
           setTimeout(() => setError(""), 3000)
           return
         }
         
         if (audioBlob.size > 1000) {
-          await processAudio(audioBlob)
+          await processVoiceMessage(audioBlob)
         } else {
           setError("Gravação muito curta. Tente novamente.")
           setTimeout(() => setError(""), 3000)
@@ -158,7 +230,6 @@ export default function VozOtimizada() {
     if (mediaRecorder.current && isRecording) {
       mediaRecorder.current.stop()
       setIsRecording(false)
-      setIsProcessing(true)
     }
     
     if (stream.current) {
@@ -167,13 +238,17 @@ export default function VozOtimizada() {
     }
   }
 
-  // Processar áudio usando arquitetura chained
-  const processAudio = async (audioBlob: Blob) => {
+  // Processar mensagem de voz
+  const processVoiceMessage = async (audioBlob: Blob) => {
     try {
+      setIsProcessing(true)
       setError("")
-      setProcessingStage("Transcrevendo áudio...")
       
-      // Transcrição
+      // Criar URL temporário para o áudio do usuário
+      const userAudioUrl = URL.createObjectURL(audioBlob)
+      
+      // Stage 1: Transcrição
+      setCurrentProcessingStage(processingStages[0])
       const transcriptionResponse = await transcribeAudio(audioBlob)
       if (!transcriptionResponse.success) {
         throw new Error(transcriptionResponse.error || "Erro na transcrição")
@@ -187,36 +262,44 @@ export default function VozOtimizada() {
         return
       }
       
-      setProcessingStage("Processando resposta...")
+      // Adicionar mensagem do usuário com áudio
+      addMessage(userText, 'user', 'voice', userAudioUrl)
       
-      // Processamento LLM
-      const llmResponse = await processWithLLM(userText)
+      // Stage 2: Processamento LLM (com possível busca na web)
+      if (webSearchEnabled) {
+        setCurrentProcessingStage(processingStages[2]) // searching
+      } else {
+        setCurrentProcessingStage(processingStages[1]) // processing
+      }
+      
+      const llmResponse = await processWithLLM(userText, 'voice')
       if (!llmResponse.success) {
         throw new Error(llmResponse.error || "Erro no processamento")
       }
       
       const assistantText = llmResponse.text
       
-      setProcessingStage("Gerando áudio...")
-      
-      // Síntese de voz
+      // Stage 3: Síntese de voz
+      setCurrentProcessingStage(processingStages[3])
       const ttsResponse = await generateSpeech(assistantText)
       if (!ttsResponse.success) {
         throw new Error(ttsResponse.error || "Erro na síntese de voz")
       }
       
-      // Reproduzir áudio
+      // Adicionar resposta da IA com áudio
+      const messageId = addMessage(assistantText, 'assistant', 'voice', ttsResponse.audioUrl, llmResponse.webSearchUsed)
+      
+      // Auto-reproduzir resposta da IA
       if (ttsResponse.audioUrl) {
-        setProcessingStage("")
-        playAudio(ttsResponse.audioUrl)
+        setTimeout(() => playAudio(ttsResponse.audioUrl!, messageId), 500)
       }
       
     } catch (err: any) {
       setError("Erro no processamento: " + (err?.message || err))
-      setProcessingStage("")
+      setTimeout(() => setError(""), 5000)
     } finally {
       setIsProcessing(false)
-      setProcessingStage("")
+      setCurrentProcessingStage(null)
     }
   }
 
@@ -234,7 +317,7 @@ export default function VozOtimizada() {
   }
 
   // Processar com LLM
-  const processWithLLM = async (userText: string) => {
+  const processWithLLM = async (userText: string, mode: 'text' | 'voice') => {
     const response = await fetch('/api/voice/chat', {
       method: 'POST',
       headers: {
@@ -243,7 +326,9 @@ export default function VozOtimizada() {
       body: JSON.stringify({ 
         message: userText,
         companyData: companyData,
-        companyName: companyName
+        companyName: companyName,
+        mode: mode,
+        webSearchEnabled: webSearchEnabled
       })
     })
     
@@ -252,67 +337,51 @@ export default function VozOtimizada() {
 
   // Gerar síntese de voz
   const generateSpeech = async (text: string) => {
-    const startTime = Date.now()
-    
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 45000) // 45 segundos timeout
-      
-      const response = await fetch('/api/voice/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          text: text,
-          voice: 'nova',
-          model: 'gpt-4o-mini-tts', // Usar modelo mais rápido
-          speed: 1.1 // Ligeiramente mais rápido para melhor UX
-        }),
-        signal: controller.signal
+    const response = await fetch('/api/voice/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        text: text,
+        voice: 'nova',
+        model: 'gpt-4o-mini-tts',
+        speed: 1.1
       })
-      
-      clearTimeout(timeoutId)
-      const processingTime = Date.now() - startTime
-      console.log(`Frontend TTS: ${processingTime}ms`)
-      
-      const result = await response.json()
-      
-      // Log de performance
-      if (result.processingTime) {
-        console.log(`TTS Performance - Backend: ${result.processingTime}ms, Total: ${processingTime}ms, Cached: ${result.cached}`)
-      }
-      
-      return result
-      
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        return { success: false, error: 'Timeout na síntese de voz. Tente novamente.' }
-      }
-      throw error
-    }
+    })
+    
+    return await response.json()
   }
 
   // Reproduzir áudio
-  const playAudio = (audioUrl: string) => {
+  const playAudio = (audioUrl: string, messageId: string) => {
+    // Parar áudio atual se estiver tocando
     if (currentAudio) {
       currentAudio.pause()
       currentAudio.currentTime = 0
     }
     
     const audio = new Audio(audioUrl)
+    
     audio.onplay = () => {
-      setIsPlaying(true)
+      setPlayingMessageId(messageId)
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, isPlaying: true }
+          : { ...msg, isPlaying: false }
+      ))
     }
     
     audio.onended = () => {
-      setIsPlaying(false)
+      setPlayingMessageId(null)
+      setMessages(prev => prev.map(msg => ({ ...msg, isPlaying: false })))
       setCurrentAudio(null)
     }
     
     audio.onerror = () => {
       setError("Erro ao reproduzir áudio")
-      setIsPlaying(false)
+      setPlayingMessageId(null)
+      setMessages(prev => prev.map(msg => ({ ...msg, isPlaying: false })))
       setCurrentAudio(null)
     }
     
@@ -320,27 +389,58 @@ export default function VozOtimizada() {
     audio.play()
   }
 
-  // Pausar áudio atual
+  // Pausar áudio
   const pauseAudio = () => {
     if (currentAudio) {
       currentAudio.pause()
-      setIsPlaying(false)
+      setPlayingMessageId(null)
+      setMessages(prev => prev.map(msg => ({ ...msg, isPlaying: false })))
     }
   }
 
-  // Reiniciar
-  const reset = () => {
-    setError("")
-    if (currentAudio) {
-      currentAudio.pause()
-      setCurrentAudio(null)
-    }
-    setIsPlaying(false)
-    
-    if (isRecording) {
-      stopRecording()
+  // Gerar áudio para mensagem de texto
+  const generateAudioForMessage = async (messageId: string, text: string) => {
+    try {
+      const ttsResponse = await generateSpeech(text)
+      if (ttsResponse.success && ttsResponse.audioUrl) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, audioUrl: ttsResponse.audioUrl }
+            : msg
+        ))
+        playAudio(ttsResponse.audioUrl, messageId)
+      }
+    } catch (err) {
+      setError("Erro ao gerar áudio")
+      setTimeout(() => setError(""), 3000)
     }
   }
+
+  // Fechar dropdown ao clicar fora ou pressionar ESC
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const dropdown = document.querySelector('[data-dropdown="tools"]')
+      if (dropdown && !dropdown.contains(event.target as Node)) {
+        setToolsDropdownOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setToolsDropdownOpen(false)
+      }
+    }
+
+    if (toolsDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [toolsDropdownOpen])
 
   // Cleanup
   useEffect(() => {
@@ -351,172 +451,387 @@ export default function VozOtimizada() {
       if (currentAudio) {
         currentAudio.pause()
       }
+      // Limpar URLs temporários
+      messages.forEach(msg => {
+        if (msg.audioUrl && msg.audioUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(msg.audioUrl)
+        }
+      })
     }
   }, [])
-
-  // Estado do botão
-  const getButtonState = () => {
-    if (isRecording) return { 
-      bg: 'bg-red-500 hover:bg-red-600 active:bg-red-700', 
-      ring: 'focus:ring-red-400/40', 
-      pulse: 'animate-pulse',
-      icon: MicOff 
-    }
-    if (isProcessing) return { 
-      bg: 'bg-yellow-500', 
-      ring: 'focus:ring-yellow-400/40', 
-      pulse: 'animate-spin',
-      icon: Loader2
-    }
-    if (isPlaying) return { 
-      bg: 'bg-green-500 hover:bg-green-600', 
-      ring: 'focus:ring-green-400/40', 
-      pulse: '',
-      icon: Volume2
-    }
-    return { 
-      bg: 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700', 
-      ring: 'focus:ring-orange-400/40', 
-      pulse: '',
-      icon: Mic 
-    }
-  }
-
-  const buttonState = getButtonState()
-  const IconComponent = buttonState.icon
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1814]">
       {/* Background elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.05] via-transparent to-amber-700/[0.05] blur-3xl" />
-      
-      {/* Decorative shapes */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-amber-500/[0.05] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-amber-700/[0.05] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-
-      {/* Sound waves durante gravação */}
-      {isRecording && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="flex space-x-2">
-            {[...Array(7)].map((_, i) => (
-              <div
-                key={i}
-                className="w-1 bg-red-400/60 rounded-full animate-pulse"
-                style={{
-                  height: `${50 + Math.sin(Date.now() * 0.015 + i) * 40}px`,
-                  animationDelay: `${i * 0.1}s`,
-                  animationDuration: '0.6s'
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <div className="relative z-10">
         <SharedHeader companyName={companyName} />
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center text-white p-8">
+      {/* Chat Container */}
+      <div className="relative z-10 h-[calc(100vh-80px)] flex justify-center p-6">
+        <div className="w-full max-w-[80%] flex flex-col border-2 border-orange-700/50 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
         
-        {/* Título */}
-        <div className="text-center mb-16 max-w-2xl">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
-            Assistente de Voz BrandPlot
-          </h1>
-          <p className="text-xl text-white/80 mb-4">
-            Especialista em branding e estratégia de marca
-          </p>
-          <p className="text-sm text-orange-300 font-medium">
-            Focado em insights personalizados para <span className="text-orange-400 font-bold">{companyName}</span>
-          </p>
+        {/* Chat Header */}
+        <div className="bg-[#2a251f] border-b border-orange-500/20 p-4">
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-white mb-1">
+              Assistente BrandPlot
+            </h1>
+            <p className="text-sm text-orange-300">
+              Especialista em branding para <span className="font-semibold">{companyName}</span>
+            </p>
+          </div>
         </div>
 
-        {/* Botão principal */}
-        <div className="flex flex-col items-center space-y-8">
-          
-          <div className="relative">
-            {/* Círculos de onda */}
-            {(isRecording || isPlaying) && (
-              <>
-                <div className="absolute inset-0 rounded-full border-2 border-orange-400/30 animate-ping scale-110"></div>
-                <div className="absolute inset-0 rounded-full border-2 border-orange-400/20 animate-ping scale-125" style={{ animationDelay: '0.5s' }}></div>
-                <div className="absolute inset-0 rounded-full border-2 border-orange-400/10 animate-ping scale-150" style={{ animationDelay: '1s' }}></div>
-              </>
-            )}
-            
-            <button
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp} // Para casos onde o mouse sai do botão
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              disabled={isProcessing}
-              className={`w-36 h-36 rounded-full flex items-center justify-center transition-all text-white text-3xl shadow-2xl focus:ring-8 outline-none duration-200 transform hover:scale-105 active:scale-95 ${buttonState.bg} ${buttonState.ring} ${buttonState.pulse} ${isProcessing ? 'cursor-not-allowed' : 'cursor-pointer'} select-none`}
-            >
-              <IconComponent className="w-18 h-18" />
-            </button>
-          </div>
-
-          {/* Status */}
-          <div className="text-center h-12">
-            <p className="text-lg font-medium text-white/90">
-              {!isRecording && !isProcessing && !isPlaying && "Pressione e mantenha para falar"}
-              {isRecording && "Falando... (solte para processar)"}
-              {isProcessing && (processingStage || "Processando...")}
-              {isPlaying && "Reproduzindo resposta"}
-            </p>
-            {isProcessing && processingStage && (
-              <p className="text-sm text-white/60 mt-1">
-                {processingStage.includes("Gerando áudio") && "Isso pode levar alguns segundos..."}
-              </p>
-            )}
-          </div>
-
-          {/* Controles */}
-          {(error || isPlaying) && (
-            <div className="flex flex-col items-center space-y-4">
-              {isPlaying && (
-                <button
-                  onClick={pauseAudio}
-                  className="px-6 py-3 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 rounded-xl transition-colors text-sm text-orange-300"
-                >
-                  Pausar
-                </button>
-              )}
-              
-              {error && (
-                <button
-                  onClick={reset}
-                  className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors text-sm text-white/80 hover:text-white"
-                >
-                  Tentar Novamente
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Erro */}
-          {error && (
-            <div className="max-w-md">
-              <div className="bg-red-500/10 text-red-400 p-4 rounded-xl text-sm text-center border border-red-500/20">
-                {error}
+        {/* Messages Container */}
+        <div 
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+        >
+          {messages.length === 0 && (
+            <div className="text-center text-white/60 mt-8">
+              <div className="max-w-md mx-auto">
+                <Volume2 className="w-12 h-12 mx-auto mb-4 text-orange-400" />
+                <p className="text-lg font-medium mb-2">Bem-vindo ao Assistente</p>
+                <p className="text-sm">
+                  Envie uma mensagem de texto ou grave um áudio para começar a conversar sobre branding e estratégia de marca.
+                </p>
               </div>
             </div>
           )}
 
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+                             <div className={`max-w-[70%] ${
+                 message.type === 'user' 
+                   ? 'bg-orange-500 text-white shadow-lg' 
+                   : 'bg-[#2a251f] text-white border border-orange-500/20 shadow-lg'
+               } rounded-2xl p-3 animate-in slide-in-from-bottom-2 duration-300`}>
+                
+                                 {/* Conteúdo da mensagem */}
+                 <div className="mb-2">
+                   <div className={`text-sm leading-relaxed prose prose-invert prose-sm max-w-none ${
+                     message.type === 'user' ? 'prose-orange' : 'prose-neutral'
+                   }`}>
+                     <ReactMarkdown
+                       components={{
+                         p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                         strong: ({ children }) => <strong className={`font-semibold ${
+                           message.type === 'user' ? 'text-orange-100' : 'text-white'
+                         }`}>{children}</strong>,
+                         em: ({ children }) => <em className={`italic ${
+                           message.type === 'user' ? 'text-orange-100/90' : 'text-white/90'
+                         }`}>{children}</em>,
+                         ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1 ml-2">{children}</ul>,
+                         ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1 ml-2">{children}</ol>,
+                         li: ({ children }) => <li className={`${
+                           message.type === 'user' ? 'text-orange-100/90' : 'text-white/90'
+                         }`}>{children}</li>,
+                         code: ({ children, className }) => {
+                           const isInline = !className
+                           if (isInline) {
+                             return <code className={`px-1 py-0.5 rounded text-xs font-mono ${
+                               message.type === 'user' 
+                                 ? 'bg-orange-600/30 text-orange-100' 
+                                 : 'bg-black/20 text-white'
+                             }`}>{children}</code>
+                           }
+                           return <pre className={`p-2 rounded text-xs font-mono overflow-x-auto ${
+                             message.type === 'user' 
+                               ? 'bg-orange-600/30 text-orange-100' 
+                               : 'bg-black/20 text-white'
+                           }`}><code>{children}</code></pre>
+                         },
+                         h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                         h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                         h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                         blockquote: ({ children }) => <blockquote className={`border-l-2 pl-3 italic ${
+                           message.type === 'user' 
+                             ? 'border-orange-300/40 text-orange-100/80' 
+                             : 'border-white/20 text-white/80'
+                         }`}>{children}</blockquote>,
+                       }}
+                     >
+                       {message.content}
+                     </ReactMarkdown>
+                   </div>
+                 </div>
+
+                {/* Controles de áudio */}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <span className={`${
+                      message.type === 'user' ? 'text-orange-100' : 'text-orange-300'
+                    }`}>
+                      {message.mode === 'voice' ? '🎤' : '💬'} 
+                      {message.timestamp.toLocaleTimeString('pt-BR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                    {/* Indicador de busca na web */}
+                    {message.webSearchUsed && (
+                      <span className="flex items-center space-x-1 text-blue-400" title="Informações atualizadas da web">
+                        <Globe className="w-3 h-3" />
+                        <span className="text-xs">Web</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-1">
+                    {/* Botão de play/pause para mensagens com áudio */}
+                    {message.audioUrl && (
+                      <button
+                        onClick={() => 
+                          message.isPlaying 
+                            ? pauseAudio() 
+                            : playAudio(message.audioUrl!, message.id)
+                        }
+                        className={`p-1.5 rounded-full transition-colors ${
+                          message.type === 'user'
+                            ? 'hover:bg-orange-600'
+                            : 'hover:bg-orange-500/20'
+                        }`}
+                      >
+                        {message.isPlaying ? (
+                          <Pause className="w-3 h-3" />
+                        ) : (
+                          <Play className="w-3 h-3" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Botão para gerar áudio para mensagens de texto da IA */}
+                    {message.type === 'assistant' && message.mode === 'text' && !message.audioUrl && (
+                      <button
+                        onClick={() => generateAudioForMessage(message.id, message.content)}
+                        className="p-1.5 rounded-full hover:bg-orange-500/20 transition-colors"
+                        title="Ouvir resposta"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Indicador de processamento */}
+          {isProcessing && currentProcessingStage && (
+            <div className="flex justify-start">
+              <div className="bg-[#2a251f] border border-orange-500/20 rounded-2xl p-3">
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1">
+                    {processingStages.map((stage, index) => {
+                      const Icon = stage.icon
+                      const isActive = stage.stage === currentProcessingStage.stage
+                      const isCompleted = processingStages.findIndex(s => s.stage === currentProcessingStage.stage) > index
+                      
+                      return (
+                        <div
+                          key={stage.stage}
+                          className={`p-1.5 rounded-full transition-all ${
+                            isActive 
+                              ? 'bg-orange-500 text-white animate-pulse' 
+                              : isCompleted 
+                                ? 'bg-green-500 text-white'
+                                : 'bg-gray-600 text-gray-400'
+                          }`}
+                        >
+                          <Icon className="w-3 h-3" />
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <span className="text-sm text-orange-300">
+                    {currentProcessingStage.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Instruções */}
-        <div className="mt-16 text-center text-white/60 text-sm max-w-xl">
-          <p>
-            Pressione e mantenha o botão pressionado enquanto fala sua pergunta sobre branding, 
-            estratégia de marca ou qualquer dúvida sobre <span className="text-orange-300">{companyName}</span>.
-          </p>
-        </div>
+                   {/* Error Display */}
+         {error && (
+           <div className="mx-4 mb-2">
+             <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-sm text-center">
+               {error}
+             </div>
+           </div>
+         )}
 
+                 {/* Input Container */}
+         <div className="bg-[#2a251f] border-t border-orange-500/20 p-4">
+           <div className="flex items-end space-x-2 sm:space-x-3">
+             
+             {/* Ferramentas Dropdown */}
+             <div className="relative" data-dropdown="tools">
+               <button
+                 onClick={() => setToolsDropdownOpen(!toolsDropdownOpen)}
+                 className={`p-3 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                   webSearchEnabled 
+                     ? 'bg-orange-500/20 border border-orange-500/50 text-orange-400 hover:bg-orange-500/30' 
+                     : 'bg-[#1a1814] border border-orange-500/30 text-white hover:border-orange-500 hover:bg-[#2a251f]'
+                 }`}
+                 title="Ferramentas disponíveis"
+               >
+                 <div className="relative">
+                   <Settings className="w-5 h-5" />
+                   {webSearchEnabled && (
+                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                   )}
+                 </div>
+               </button>
+
+               {/* Dropdown Menu */}
+               {toolsDropdownOpen && (
+                 <div className="absolute left-0 bottom-full mb-2 w-80 bg-[#1a1814] border border-orange-500/20 rounded-2xl shadow-2xl backdrop-blur-sm z-50 overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
+                   <div className="p-4">
+                     <h3 className="text-white font-semibold mb-3 text-sm">Ferramentas Disponíveis</h3>
+                     
+                     {/* Busca na Web */}
+                     <div 
+                       onClick={() => {
+                         setWebSearchEnabled(!webSearchEnabled)
+                         setToolsDropdownOpen(false)
+                       }}
+                       className={`flex items-start space-x-3 p-3 rounded-xl cursor-pointer transition-all duration-200 mb-2 transform hover:scale-[1.02] active:scale-[0.98] ${
+                         webSearchEnabled 
+                           ? 'bg-orange-500/10 border border-orange-500/30 shadow-lg hover:bg-orange-500/15' 
+                           : 'hover:bg-white/5 border border-transparent hover:border-white/10'
+                       }`}
+                     >
+                       <div className={`flex-shrink-0 p-2 rounded-lg ${
+                         webSearchEnabled ? 'bg-orange-500' : 'bg-blue-500'
+                       }`}>
+                         <Globe className="w-4 h-4 text-white" />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center justify-between">
+                           <h4 className="text-white font-medium text-sm">Buscar na Web</h4>
+                           {webSearchEnabled && (
+                             <div className="flex items-center space-x-1">
+                               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                               <span className="text-xs text-green-400 font-medium">ATIVO</span>
+                             </div>
+                           )}
+                         </div>
+                         <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                           Acesso a informações atualizadas da internet para respostas mais precisas
+                         </p>
+                       </div>
+                     </div>
+
+                     {/* Síntese de Voz - Sempre ativa */}
+                     <div className="flex items-start space-x-3 p-3 rounded-xl border border-transparent mb-2 opacity-60">
+                       <div className="flex-shrink-0 p-2 rounded-lg bg-purple-500">
+                         <Volume2 className="w-4 h-4 text-white" />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center justify-between">
+                           <h4 className="text-white font-medium text-sm">Síntese de Voz</h4>
+                           <div className="flex items-center space-x-1">
+                             <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                             <span className="text-xs text-green-400 font-medium">ATIVO</span>
+                           </div>
+                         </div>
+                         <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                           Conversão de texto em áudio com voz natural e expressiva
+                         </p>
+                       </div>
+                     </div>
+
+                     {/* Especialista em Branding - Sempre ativa */}
+                     <div className="flex items-start space-x-3 p-3 rounded-xl border border-transparent opacity-60">
+                       <div className="flex-shrink-0 p-2 rounded-lg bg-amber-500">
+                         <Sparkles className="w-4 h-4 text-white" />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center justify-between">
+                           <h4 className="text-white font-medium text-sm">Especialista em Branding</h4>
+                           <div className="flex items-center space-x-1">
+                             <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                             <span className="text-xs text-green-400 font-medium">ATIVO</span>
+                           </div>
+                         </div>
+                         <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                           Consultoria especializada em estratégia de marca e posicionamento
+                         </p>
+                       </div>
+                     </div>
+                   </div>
+
+                   <div className="border-t border-orange-500/10 px-4 py-3">
+                     <p className="text-xs text-gray-500 text-center">
+                       Mais ferramentas serão adicionadas em breve
+                     </p>
+                   </div>
+                 </div>
+               )}
+             </div>
+             
+             {/* Text Input */}
+             <div className="flex-1">
+               <div className="relative">
+                 <input
+                   type="text"
+                   value={inputText}
+                   onChange={(e) => setInputText(e.target.value)}
+                   onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendTextMessage()}
+                   placeholder="Digite uma mensagem..."
+                   disabled={isProcessing}
+                   className="w-full bg-[#1a1814] border border-orange-500/30 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 transition-all"
+                 />
+               </div>
+             </div>
+ 
+             {/* Voice Button */}
+             <button
+               onClick={toggleRecording}
+               disabled={isProcessing}
+               className={`p-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 ${
+                 isRecording 
+                   ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                   : 'bg-orange-500 hover:bg-orange-600'
+               } text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+               title={isRecording ? "Clique para parar a gravação" : "Clique para gravar áudio"}
+             >
+               {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+             </button>
+ 
+             {/* Send Button */}
+             <button
+               onClick={sendTextMessage}
+               disabled={!inputText.trim() || isProcessing}
+               className="p-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all transform hover:scale-105 active:scale-95 disabled:transform-none"
+               title="Enviar mensagem"
+             >
+               {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+             </button>
+           </div>
+
+                     {/* Recording indicator */}
+           {isRecording && (
+             <div className="mt-3 text-center">
+               <div className="inline-flex items-center space-x-2 text-red-400 text-sm">
+                 <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                 <span>Gravando... (clique no microfone para parar)</span>
+               </div>
+             </div>
+           )}
+                 </div>
+
+        </div>
       </div>
     </div>
   )

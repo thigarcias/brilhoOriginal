@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, companyData, companyName } = await request.json()
+    const { message, companyData, companyName, mode = 'voice', webSearchEnabled = false } = await request.json()
 
     if (!message) {
       return NextResponse.json(
@@ -17,7 +17,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Prompt especializado e otimizado para branding da BrandPlot
-    const systemPrompt = `Você é um consultor especialista em branding e estratégia de marca da BrandPlot, uma das principais consultorias de branding do Brasil. Você está conversando por voz com um empresário em tempo real.
+    const modeInstructions = mode === 'voice' 
+      ? 'Você está conversando por voz com um empresário em tempo real. Seja conciso, direto e conversacional.'
+      : 'Você está conversando por texto com um empresário. Pode ser mais detalhado e usar formatação se necessário.'
+
+    const webSearchInstructions = webSearchEnabled 
+      ? 'Você tem acesso à busca na web para informações atualizadas. Use quando necessário para fornecer dados recentes, tendências de mercado, exemplos de campanhas ou qualquer informação que possa estar desatualizada.'
+      : ''
+
+    const systemPrompt = `Você é um consultor especialista em branding e estratégia de marca da BrandPlot, uma das principais consultorias de branding do Brasil. ${modeInstructions} ${webSearchInstructions}
 
 ${companyData ? `
 INFORMAÇÕES DA EMPRESA:
@@ -54,12 +62,26 @@ DIRETRIZES IMPORTANTES:
 • Se houver falta de dados da empresa, solicite informações adicionais  
 • Utilize frameworks e ferramentas reconhecidas no mercado  
 • Seja consultivo e personalizado conforme o perfil do empresário  
+${mode === 'voice' ? '• Mantenha respostas entre 2-4 frases para conversação fluida' : '• Pode fornecer respostas mais detalhadas quando necessário'}
+${webSearchEnabled ? '• Quando usar busca na web, cite as fontes e indique que as informações são atualizadas' : ''}
 
 Você é o consultor que o empresário deseja ter ao lado para fortalecer sua marca e escalar o negócio. `
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-nano",
-      messages: [
+    // Usar Responses API para melhor flexibilidade com web search
+    const tools = webSearchEnabled ? [
+      {
+        type: "web_search_preview" as const,
+        user_location: {
+          type: "approximate" as const,
+          country: "BR"
+        },
+        search_context_size: "medium" as const
+      }
+    ] : undefined
+
+    const completion = await openai.responses.create({
+      model: "gpt-4.1-mini",
+      input: [
         {
           role: "system",
           content: systemPrompt
@@ -69,11 +91,17 @@ Você é o consultor que o empresário deseja ter ao lado para fortalecer sua ma
           content: message
         }
       ],
-      max_tokens: 400, // Limitado para manter respostas concisas para voz
+      tools: tools,
+      text: {
+        format: {
+          type: "text"
+        }
+      },
+      max_output_tokens: mode === 'voice' ? 400 : 800,
       temperature: 0.7,
     })
 
-    const assistantResponse = completion.choices[0]?.message?.content
+    const assistantResponse = completion.output_text
 
     if (!assistantResponse) {
       return NextResponse.json(
@@ -82,9 +110,41 @@ Você é o consultor que o empresário deseja ter ao lado para fortalecer sua ma
       )
     }
 
+    // Debug: Log da resposta completa para verificar estrutura
+    console.log('WebSearch Debug (Responses API):', {
+      webSearchEnabled,
+      hasOutput: !!completion.output,
+      outputLength: completion.output?.length,
+      responsePreview: assistantResponse.substring(0, 200)
+    })
+
+    // Na Responses API, verificar se houve web search pelos output items
+    const hasWebSearchCall = completion.output?.some((item: any) => 
+      item.type === "web_search_call"
+    )
+
+    // Verificar se há anotações de URL nos output items de mensagem
+    const hasUrlCitations = completion.output?.some((item: any) => 
+      item.type === "message" && 
+      item.content?.[0]?.annotations?.some((annotation: any) => 
+        annotation.type === "url_citation"
+      )
+    )
+
+    const webSearchUsed = webSearchEnabled && (hasWebSearchCall || hasUrlCitations)
+
+    console.log('WebSearch Result (Responses API):', {
+      webSearchEnabled,
+      hasWebSearchCall,
+      hasUrlCitations,
+      webSearchUsed,
+      outputItems: completion.output?.map((item: any) => item.type)
+    })
+
     return NextResponse.json({
       success: true,
-      text: assistantResponse
+      text: assistantResponse,
+      webSearchUsed: webSearchUsed
     })
 
   } catch (error) {

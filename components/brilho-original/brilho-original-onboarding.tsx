@@ -6,7 +6,7 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { BrandplotCache, generateIdUnico } from "@/lib/brandplot-cache"
 import { useState, useEffect, useRef } from "react"
-import { ChevronLeft, Upload, Loader2, Home } from "lucide-react"
+import { ChevronLeft, Upload, Loader2, Home, Mic, MicOff, Square } from "lucide-react"
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -177,6 +177,14 @@ function QuestionStep({
   // Ref para input file
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Estados para gravação de áudio
+  const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([])
+  const [recordingTime, setRecordingTime] = useState(0)
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
   // Para o passo de contato, separar resposta em dois campos
   const [contact, setContact] = useState<{ phone: string; email: string }>(() => {
     if (isContactStep && answer) {
@@ -208,6 +216,114 @@ function QuestionStep({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contact])
+
+  // Limpar interval quando componente desmonta
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current)
+      }
+    }
+  }, [])
+
+  // Função para iniciar gravação
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      
+      setAudioChunks([])
+      setMediaRecorder(recorder)
+      setIsRecording(true)
+      setRecordingTime(0)
+
+      // Iniciar timer
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setAudioChunks(prev => [...prev, event.data])
+        }
+      }
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop())
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current)
+        }
+      }
+
+      recorder.start()
+    } catch (error) {
+      console.error('Erro ao iniciar gravação:', error)
+      setPasteStatus('error')
+      setTimeout(() => setPasteStatus('idle'), 3000)
+    }
+  }
+
+  // Função para parar gravação
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop()
+      setIsRecording(false)
+    }
+  }
+
+  // Função para transcrever áudio
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      setIsTranscribing(true)
+      
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'recording.mp3')
+
+      const response = await fetch('/api/voice/transcribe', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro na transcrição')
+      }
+
+      const data = await response.json()
+      
+      if (data.success && data.text) {
+        // Adicionar texto transcrito ao final do texto existente
+        const currentText = answer.trim()
+        const newText = currentText ? `${currentText} ${data.text}` : data.text
+        setAnswer(newText)
+        setPasteStatus('success')
+      } else {
+        throw new Error('Erro na transcrição')
+      }
+    } catch (error) {
+      console.error('Erro na transcrição:', error)
+      setPasteStatus('error')
+    } finally {
+      setIsTranscribing(false)
+      setTimeout(() => setPasteStatus('idle'), 3000)
+    }
+  }
+
+  // Effect para processar áudio quando gravação termina
+  useEffect(() => {
+    if (!isRecording && audioChunks.length > 0 && mediaRecorder?.state === 'inactive') {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
+      transcribeAudio(audioBlob)
+      setAudioChunks([])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording, audioChunks, mediaRecorder?.state])
+
+  // Função para formatar tempo de gravação
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
   // Handler para clique na área de upload
   const handleUploadClick = () => {
@@ -366,12 +482,64 @@ function QuestionStep({
                 <textarea
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="Digite sua resposta aqui..."
+                  placeholder="Digite sua resposta aqui ou use o botão de microfone para gravar um áudio..."
                   className="w-full h-32 px-6 py-4 bg-white/[0.05] border border-white/[0.1] rounded-2xl text-white placeholder-white/40 focus:outline-none focus:border-[#c8b79e]/50 focus:bg-white/[0.08] transition-all duration-300 resize-none backdrop-blur-sm text-base leading-relaxed"
                   style={{ fontSize: '16px' }} // Prevent zoom on iOS
                 />
-                <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                  {answer.trim() && (
+                
+                {/* Botão de gravação de áudio */}
+                <div className="absolute bottom-4 right-4 flex items-center gap-3">
+                  {/* Status de transcrição/gravação */}
+                  {isTranscribing && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-[#c8b79e]/20 rounded-full">
+                      <Loader2 className="w-4 h-4 text-[#c8b79e] animate-spin" />
+                      <span className="text-xs text-[#c8b79e]">Transcrevendo...</span>
+                    </div>
+                  )}
+                  
+                  {isRecording && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-full">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-xs text-red-400">{formatRecordingTime(recordingTime)}</span>
+                    </div>
+                  )}
+
+                  {pasteStatus === 'success' && !isTranscribing && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-full">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <span className="text-xs text-green-400">Áudio transcrito!</span>
+                    </div>
+                  )}
+
+                  {pasteStatus === 'error' && !isTranscribing && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-full">
+                      <div className="w-2 h-2 bg-red-500 rounded-full" />
+                      <span className="text-xs text-red-400">Erro no áudio</span>
+                    </div>
+                  )}
+
+                  {/* Botão de gravação */}
+                  <button
+                    type="button"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={isTranscribing}
+                    className={cn(
+                      "p-2 rounded-full transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed",
+                      isRecording 
+                        ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" 
+                        : "bg-white/[0.08] text-white/60 hover:bg-white/[0.15] hover:text-[#c8b79e]"
+                    )}
+                    title={isRecording ? "Parar gravação" : "Gravar áudio"}
+                  >
+                    {isRecording ? (
+                      <Square className="w-4 h-4" />
+                    ) : (
+                      <Mic className="w-4 h-4" />
+                    )}
+                  </button>
+
+                  {/* Indicador de texto */}
+                  {answer.trim() && !isRecording && !isTranscribing && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
