@@ -10,6 +10,7 @@ export default function VozOtimizada() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState("")
+  const [processingStage, setProcessingStage] = useState("")
   
   // Estados para controle de áudio
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
@@ -170,6 +171,7 @@ export default function VozOtimizada() {
   const processAudio = async (audioBlob: Blob) => {
     try {
       setError("")
+      setProcessingStage("Transcrevendo áudio...")
       
       // Transcrição
       const transcriptionResponse = await transcribeAudio(audioBlob)
@@ -185,6 +187,8 @@ export default function VozOtimizada() {
         return
       }
       
+      setProcessingStage("Processando resposta...")
+      
       // Processamento LLM
       const llmResponse = await processWithLLM(userText)
       if (!llmResponse.success) {
@@ -192,6 +196,8 @@ export default function VozOtimizada() {
       }
       
       const assistantText = llmResponse.text
+      
+      setProcessingStage("Gerando áudio...")
       
       // Síntese de voz
       const ttsResponse = await generateSpeech(assistantText)
@@ -201,20 +207,23 @@ export default function VozOtimizada() {
       
       // Reproduzir áudio
       if (ttsResponse.audioUrl) {
+        setProcessingStage("")
         playAudio(ttsResponse.audioUrl)
       }
       
     } catch (err: any) {
       setError("Erro no processamento: " + (err?.message || err))
+      setProcessingStage("")
     } finally {
       setIsProcessing(false)
+      setProcessingStage("")
     }
   }
 
   // Transcrever áudio
   const transcribeAudio = async (audioBlob: Blob) => {
     const formData = new FormData()
-    formData.append('audio', audioBlob, 'audio.webm')
+    formData.append('audio', audioBlob, 'audio.mp3')
     
     const response = await fetch('/api/voice/transcribe', {
       method: 'POST',
@@ -243,20 +252,45 @@ export default function VozOtimizada() {
 
   // Gerar síntese de voz
   const generateSpeech = async (text: string) => {
-    const response = await fetch('/api/voice/tts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        text: text,
-        voice: 'nova',
-        model: 'gpt-4o-mini-tts',
-        speed: 1.0
-      })
-    })
+    const startTime = Date.now()
     
-    return await response.json()
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000) // 45 segundos timeout
+      
+      const response = await fetch('/api/voice/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          text: text,
+          voice: 'nova',
+          model: 'gpt-4o-mini-tts', // Usar modelo mais rápido
+          speed: 1.1 // Ligeiramente mais rápido para melhor UX
+        }),
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      const processingTime = Date.now() - startTime
+      console.log(`Frontend TTS: ${processingTime}ms`)
+      
+      const result = await response.json()
+      
+      // Log de performance
+      if (result.processingTime) {
+        console.log(`TTS Performance - Backend: ${result.processingTime}ms, Total: ${processingTime}ms, Cached: ${result.cached}`)
+      }
+      
+      return result
+      
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        return { success: false, error: 'Timeout na síntese de voz. Tente novamente.' }
+      }
+      throw error
+    }
   }
 
   // Reproduzir áudio
@@ -337,7 +371,7 @@ export default function VozOtimizada() {
     if (isPlaying) return { 
       bg: 'bg-green-500 hover:bg-green-600', 
       ring: 'focus:ring-green-400/40', 
-      pulse: 'animate-pulse',
+      pulse: '',
       icon: Volume2
     }
     return { 
@@ -431,9 +465,14 @@ export default function VozOtimizada() {
             <p className="text-lg font-medium text-white/90">
               {!isRecording && !isProcessing && !isPlaying && "Pressione e mantenha para falar"}
               {isRecording && "Falando... (solte para processar)"}
-              {isProcessing && "Processando..."}
+              {isProcessing && (processingStage || "Processando...")}
               {isPlaying && "Reproduzindo resposta"}
             </p>
+            {isProcessing && processingStage && (
+              <p className="text-sm text-white/60 mt-1">
+                {processingStage.includes("Gerando áudio") && "Isso pode levar alguns segundos..."}
+              </p>
+            )}
           </div>
 
           {/* Controles */}
