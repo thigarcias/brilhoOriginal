@@ -6,7 +6,244 @@ figma.showUI(__html__, {
 
 let previousTextStates = [];
 
+// ============ COMUNICAÇÃO COM PÁGINA WEB ============
+// Sistema robusto para receber comandos da página web
+function startWebCommunication() {
+  console.log('🌐 Vicgario Plugin: Iniciando comunicação robusta com página web...');
+  
+  // Verificar comandos pendentes a cada 2 segundos
+  setInterval(async () => {
+    try {
+      // Verificar se há comando pendente
+      const pendingCommand = await checkForWebCommand();
+      
+      if (pendingCommand) {
+        console.log('📬 Vicgario Plugin: Comando recebido da página web:', pendingCommand);
+        
+        try {
+          // Processar comando
+          await handleWebCommand(pendingCommand);
+          
+          // Limpar comando após processar com sucesso
+          await clearWebCommand();
+          
+          // Notificar página web sobre sucesso
+          await notifyWebCommandProcessed(pendingCommand);
+          
+        } catch (processingError) {
+          console.error('❌ Vicgario Plugin: Erro ao processar comando:', processingError);
+          
+          // Notificar página web sobre erro
+          await notifyWebCommandError(pendingCommand, processingError);
+          
+          // Ainda assim limpar o comando para não ficar em loop
+          await clearWebCommand();
+        }
+      }
+    } catch (communicationError) {
+      console.error('❌ Vicgario Plugin: Erro na comunicação web:', communicationError);
+    }
+  }, 2000);
+  
+  console.log('✅ Vicgario Plugin: Sistema de comunicação web ativo');
+}
+
+// Verificar se há comando pendente da página web
+async function checkForWebCommand() {
+  try {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.log('⏱️ Vicgario Plugin: Timeout ao verificar comando web');
+        resolve(null);
+      }, 1500); // Aumentado para 1.5 segundos
+      
+      // Enviar solicitação para UI
+      figma.ui.postMessage({
+        type: 'check-web-command',
+        timestamp: Date.now()
+      });
+      
+      const handler = (msg) => {
+        if (msg.type === 'web-command-response') {
+          clearTimeout(timeout);
+          figma.ui.off('message', handler);
+          
+          if (msg.command) {
+            console.log('✅ Vicgario Plugin: Comando encontrado:', msg.command.type || 'sem tipo');
+            if (msg.storageInfo) {
+              console.log('📊 Vicgario Plugin: Info do armazenamento:', msg.storageInfo);
+            }
+          }
+          
+          resolve(msg.command);
+        }
+      };
+      
+      figma.ui.on('message', handler);
+    });
+  } catch (error) {
+    console.error('❌ Vicgario Plugin: Erro ao verificar comando web:', error);
+    return null;
+  }
+}
+
+// Processar comando vindo da página web
+async function handleWebCommand(command) {
+  console.log('⚡ Vicgario Plugin: Processando comando web:', command.type);
+  
+  try {
+    // Converter comando web para formato interno do plugin
+    const internalMsg = convertWebCommandToInternal(command);
+    
+    if (internalMsg) {
+      // Processar usando o sistema existente
+      await handlePluginMessage(internalMsg);
+      
+      // Notificar sucesso via UI para página web
+      figma.ui.postMessage({
+        type: 'notify-web-success',
+        command: command,
+        timestamp: Date.now()
+      });
+      
+      // Notificar sucesso
+      figma.notify(`✅ Comando da página web executado: ${command.type}`);
+      
+      console.log('✅ Vicgario Plugin: Comando web processado com sucesso');
+    } else if (command.type === 'ping') {
+      // Ping já foi processado, apenas logar
+      console.log('✅ Vicgario Plugin: Ping processado');
+    } else {
+      throw new Error(`Comando web não reconhecido: ${command.type}`);
+    }} catch (error) {
+    console.error('❌ Vicgario Plugin: Erro ao processar comando web:', error);
+    
+    // Notificar erro via UI para página web
+    figma.ui.postMessage({
+      type: 'notify-web-error',
+      command: command,
+      error: error && error.message ? error.message : 'Erro desconhecido',
+      timestamp: Date.now()
+    });
+    
+    figma.notify(`❌ Erro ao executar comando: ${error && error.message ? error.message : 'Erro desconhecido'}`);
+  }
+}
+
+// Converter comando da página web para formato interno
+function convertWebCommandToInternal(webCommand) {
+  switch (webCommand.type) {
+    case 'ping':
+      // Comando de ping - responder imediatamente que o plugin está ativo
+      figma.ui.postMessage({
+        type: 'notify-web-success',
+        command: webCommand,
+        pluginStatus: 'active',
+        timestamp: Date.now()
+      });
+      console.log('🏓 Vicgario Plugin: Respondido ping da página web');
+      return null; // Não precisa processar mais nada
+      
+    case 'apply-text':
+      return {
+        type: 'apply-text',
+        content: webCommand.content,
+        parentName: webCommand.parentName,
+        frameName: webCommand.frameName,
+        options: webCommand.options || { uppercase: false, onlySelected: false }
+      };
+      
+    case 'edit-text-style':
+      return {
+        type: 'edit-text-style',
+        parentName: webCommand.parentName,
+        frameName: webCommand.frameName,
+        color: webCommand.color,
+        size: webCommand.fontSize || webCommand.size,
+        font: webCommand.fontFamily || webCommand.font,
+        weight: webCommand.fontWeight || webCommand.weight
+      };
+      
+    case 'edit-frame':
+      return {
+        type: 'edit-frame',
+        parentName: webCommand.parentName,
+        frameName: webCommand.frameName,
+        color: webCommand.backgroundColor || webCommand.color
+      };
+      
+    case 'replace-images':
+      return {
+        type: 'replace-images',
+        parentName: webCommand.parentName,
+        frameName: webCommand.frameName,
+        images: webCommand.images
+      };
+      
+    default:
+      console.log('🤷 Vicgario Plugin: Tipo de comando web desconhecido:', webCommand.type);
+      return null;
+  }
+}
+
+// Limpar comando do localStorage via UI
+async function clearWebCommand() {
+  figma.ui.postMessage({
+    type: 'clear-web-command'
+  });
+}
+
+// Notificar página web que comando foi processado
+async function notifyWebCommandProcessed(command) {
+  figma.ui.postMessage({
+    type: 'notify-web-success',
+    command: command,
+    timestamp: Date.now()
+  });
+}
+
+// Notificar página web sobre erro no processamento
+async function notifyWebCommandError(command, error) {
+  figma.ui.postMessage({
+    type: 'notify-web-error',
+    command: command,
+    error: error && error.message ? error.message : 'Erro desconhecido',
+    timestamp: Date.now()
+  });
+}
+
+// Função auxiliar para processar mensagens (mantém compatibilidade)
+async function handlePluginMessage(msg) {
+  return figmaMessageHandler(msg);
+}
+
+// Iniciar comunicação web quando plugin carregar
+startWebCommunication();
+
+// ============ CÓDIGO ORIGINAL DO PLUGIN ============
+// Mantendo toda funcionalidade original
+
 figma.ui.onmessage = async (msg) => {
+  // Verificar se é um comando direto da página web
+  if (msg.type === 'new-web-command' && msg.command) {
+    console.log('⚡ Vicgario Plugin: Comando direto recebido:', msg.command);
+    
+    // Processar comando imediatamente
+    try {
+      await handleWebCommand(msg.command);
+      console.log('✅ Vicgario Plugin: Comando direto processado');
+    } catch (error) {
+      console.error('❌ Vicgario Plugin: Erro ao processar comando direto:', error);
+    }
+    
+    return;
+  }
+  
+  // Processar mensagens normais do UI
+  await figmaMessageHandler(msg);
+};
+
+async function figmaMessageHandler(msg) {
   console.log('📨 Figma Plugin: Mensagem recebida:', msg.type, msg);
   
   if (msg.type === 'get-fonts') {
@@ -387,4 +624,4 @@ figma.ui.onmessage = async (msg) => {
     figma.ui.postMessage("done");
     figma.notify("Textos restaurados.");
   }
-}; 
+} 

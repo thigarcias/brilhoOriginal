@@ -57,7 +57,14 @@ export default function BrilhoOriginalHomepage({
     }),
   }
   const handleStart = () => {
-    // Redireciona para a página de onboarding
+    // Se o usuário estiver logado, redireciona para o dashboard
+    if (isLogged) {
+      console.log('Usuário logado, redirecionando para dashboard...')
+      window.location.href = '/dashboard'
+      return
+    }
+    // Se não estiver logado, redireciona para a página de onboarding
+    console.log('Usuário não logado, redirecionando para onboarding...')
     window.location.href = '/onboarding'
   }
 
@@ -230,14 +237,14 @@ export default function BrilhoOriginalHomepage({
                   Login
                 </Link>
               )}
+              <button
+                onClick={handleStart}
+                className="px-4 py-2 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
+              >
+                {isLogged ? 'Ir para Dashboard' : 'Começar Diagnóstico'}
+              </button>
               {isLogged && (
                 <div className="flex items-center gap-4">
-                  <Link
-                    href="/dashboard"
-                    className="text-white/80 hover:text-[#c8b79e] transition-colors text-sm font-medium"
-                  >
-                    Dashboard
-                  </Link>
                   <button
                     onClick={handleLogout}
                     className="text-white/60 hover:text-[#c8b79e] transition-colors text-sm border-0 bg-transparent"
@@ -245,14 +252,6 @@ export default function BrilhoOriginalHomepage({
                     Sair
                   </button>
                 </div>
-              )}
-              {!isLogged && (
-                <button
-                  onClick={handleStart}
-                  className="px-4 py-2 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
-                >
-                  Começar Diagnóstico
-                </button>
               )}
             </div>
           </div>
@@ -298,8 +297,10 @@ export default function BrilhoOriginalHomepage({
 
               <motion.div custom={2} variants={fadeUpVariants} initial="hidden" animate="visible">
                 <p className="text-base sm:text-lg md:text-xl text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
-                  Descubra o verdadeiro potencial da sua marca com nosso diagnóstico personalizado. Impulsione seu
-                  negócio com insights poderosos e estratégias acionáveis.
+                  {isLogged && companyName 
+                    ? `Bem-vindo de volta! Continue explorando o potencial da ${companyName} com nossas ferramentas avançadas de branding.`
+                    : "Descubra o verdadeiro potencial da sua marca com nosso diagnóstico personalizado. Impulsione seu negócio com insights poderosos e estratégias acionáveis."
+                  }
                 </p>
               </motion.div>
 
@@ -309,7 +310,9 @@ export default function BrilhoOriginalHomepage({
                     onClick={handleStart}
                     className="group relative px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 w-full sm:w-auto shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30 flex items-center justify-center gap-2"
                   >
-                    <span className="relative z-10 text-lg">Começar Diagnóstico Gratuito</span>
+                    <span className="relative z-10 text-lg">
+                      {isLogged ? 'Acessar Dashboard' : 'Começar Diagnóstico Gratuito'}
+                    </span>
                     <ArrowRight className="w-5 h-5" />
                     <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                   </button>

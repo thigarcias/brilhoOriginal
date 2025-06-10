@@ -1581,6 +1581,412 @@ document.addEventListener("click", (e) => {
     abrirModal(html);
   }
 });
+
+// ============ COMUNICAÇÃO COM PÁGINA WEB ============
+// Sistema robusto de comunicação (postMessage + fallback seguro)
+
+// Variáveis globais para armazenamento em memória
+window.webCommands = window.webCommands || [];
+window.isLocalStorageAvailable = null; // null = não testado, true/false = resultado do teste
+window.pluginMemoryStore = new Map(); // Store alternativo em memória
+
+// Função para verificar localStorage de forma mais robusta
+function checkLocalStorageSupport() {
+  if (window.isLocalStorageAvailable !== null) {
+    return window.isLocalStorageAvailable;
+  }
+
+  try {
+    // Verificações básicas
+    if (typeof Storage === 'undefined' || !window.localStorage) {
+      console.log('ℹ️ Plugin UI: Storage não suportado pelo navegador');
+      window.isLocalStorageAvailable = false;
+      return false;
+    }
+
+    // Teste real de funcionamento
+    const testKey = '__figma_plugin_test__';
+    const testValue = 'test_' + Date.now();
+    
+    localStorage.setItem(testKey, testValue);
+    const retrieved = localStorage.getItem(testKey);
+    localStorage.removeItem(testKey);
+    
+    if (retrieved === testValue) {
+      console.log('✅ Plugin UI: localStorage funcionando normalmente');
+      window.isLocalStorageAvailable = true;
+      return true;
+    } else {
+      console.log('⚠️ Plugin UI: localStorage não retornou valor correto');
+      window.isLocalStorageAvailable = false;
+      return false;
+    }
+    
+  } catch (error) {
+    console.log('ℹ️ Plugin UI: localStorage não disponível -', error.name + ':', error.message);
+    console.log('ℹ️ Plugin UI: Usando armazenamento em memória como alternativa');
+    window.isLocalStorageAvailable = false;
+    return false;
+  }
+}
+
+// Funções seguras para armazenamento
+function safeSetItem(key, value) {
+  try {
+    // Armazenar em memória sempre
+    window.pluginMemoryStore.set(key, value);
+    
+    // Tentar localStorage apenas se disponível
+    if (checkLocalStorageSupport()) {
+      localStorage.setItem(key, value);
+      return true;
+    }
+  } catch (error) {
+    console.log(`⚠️ Plugin UI: Erro ao salvar ${key}:`, error.message);
+    window.isLocalStorageAvailable = false;
+  }
+  return false;
+}
+
+function safeGetItem(key) {
+  try {
+    // Verificar memória primeiro (mais confiável)
+    if (window.pluginMemoryStore.has(key)) {
+      return window.pluginMemoryStore.get(key);
+    }
+    
+    // Tentar localStorage apenas se disponível
+    if (checkLocalStorageSupport()) {
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        // Sincronizar com memória
+        window.pluginMemoryStore.set(key, value);
+        return value;
+      }
+    }
+  } catch (error) {
+    console.log(`⚠️ Plugin UI: Erro ao ler ${key}:`, error.message);
+    window.isLocalStorageAvailable = false;
+  }
+  return null;
+}
+
+function safeRemoveItem(key) {
+  try {
+    // Limpar da memória
+    window.pluginMemoryStore.delete(key);
+    
+    // Tentar localStorage apenas se disponível
+    if (checkLocalStorageSupport()) {
+      localStorage.removeItem(key);
+    }
+  } catch (error) {
+    console.log(`⚠️ Plugin UI: Erro ao remover ${key}:`, error.message);
+    window.isLocalStorageAvailable = false;
+  }
+}
+
+// Verificar suporte inicial
+checkLocalStorageSupport();
+
+// Escutar comandos diretos da página web via postMessage
+window.addEventListener('message', function(event) {
+  // Verificar se é um comando da página web
+  if (event.data && event.data.source === 'vicgario-web') {
+    console.log('📬 Plugin UI: Comando recebido via postMessage:', event.data);
+    
+    try {
+      // Armazenar comando na memória (SEMPRE funciona)
+      const commandWithTimestamp = {
+        ...event.data,
+        timestamp: Date.now(),
+        receivedAt: new Date().toISOString()
+      };
+      
+      window.webCommands.push(commandWithTimestamp);
+      console.log('💾 Plugin UI: Comando armazenado na memória');
+      
+      // Tentar armazenar também no localStorage (se disponível)
+      const success = safeSetItem('figma-plugin-command', JSON.stringify(commandWithTimestamp));
+      if (success) {
+        console.log('💾 Plugin UI: Comando também salvo no localStorage');
+      }
+      
+      // Notificar o plugin principal sobre o novo comando
+      parent.postMessage({
+        pluginMessage: {
+          type: 'new-web-command',
+          command: commandWithTimestamp
+        }
+      }, '*');
+      
+    } catch (error) {
+      console.error('❌ Plugin UI: Erro ao processar comando da web:', error);
+    }
+  }
+});
+
+// Escutar mensagens do plugin principal
+window.onmessage = function(event) {
+  const msg = event.data.pluginMessage;
+  
+  // Verifica comando web pendente
+  if (msg && msg.type === 'check-web-command') {
+    try {
+      let command = null;
+      
+      // Priorizar comandos na memória (mais confiável)
+      if (window.webCommands && window.webCommands.length > 0) {
+        command = window.webCommands.shift();
+        console.log('🎯 Plugin UI: Comando encontrado na memória:', command);
+      }
+      // Fallback: verificar armazenamento seguro
+      else {
+        const pendingCommand = safeGetItem('figma-plugin-command');
+        if (pendingCommand) {
+          try {
+            command = JSON.parse(pendingCommand);
+            console.log('🎯 Plugin UI: Comando encontrado no armazenamento:', command);
+          } catch (parseError) {
+            console.log('⚠️ Plugin UI: Erro ao fazer parse do comando:', parseError);
+          }
+        }
+      }
+      
+      // Responder ao plugin principal
+      parent.postMessage({
+        pluginMessage: {
+          type: 'web-command-response',
+          command: command,
+          storageInfo: {
+            memoryCommands: window.webCommands.length,
+            localStorageAvailable: window.isLocalStorageAvailable,
+            memoryStoreSize: window.pluginMemoryStore.size
+          }
+        }
+      }, '*');
+      
+    } catch (error) {
+      console.error('❌ Plugin UI: Erro ao verificar comando web:', error);
+      parent.postMessage({
+        pluginMessage: {
+          type: 'web-command-response',
+          command: null,
+          error: error.message
+        }
+      }, '*');
+    }
+  }
+  
+  // Limpar comando web após processamento
+  else if (msg && msg.type === 'clear-web-command') {
+    try {
+      // Limpar comandos da memória
+      if (window.webCommands) {
+        const clearedCount = window.webCommands.length;
+        window.webCommands = [];
+        console.log(`🗑️ Plugin UI: ${clearedCount} comandos limpos da memória`);
+      }
+      
+      // Limpar armazenamento seguro
+      safeRemoveItem('figma-plugin-command');
+      console.log('🗑️ Plugin UI: Comando limpo do armazenamento');
+      
+    } catch (error) {
+      console.error('❌ Plugin UI: Erro ao limpar comandos:', error);
+    }
+  }
+  
+  // Notificar página web sobre sucesso
+  else if (msg && msg.type === 'notify-web-success') {
+    try {
+      const statusData = JSON.stringify({
+        lastProcessed: Date.now(),
+        success: true,
+        command: msg.command,
+        timestamp: msg.timestamp
+      });
+      
+      // Tentar salvar status (se possível)
+      safeSetItem('figma-plugin-status', statusData);
+      
+      // Notificar página web via postMessage (SEMPRE funciona)
+      window.parent.postMessage({
+        type: 'command-processed',
+        source: 'figma-plugin',
+        command: msg.command,
+        timestamp: msg.timestamp || Date.now(),
+        success: true
+      }, '*');
+      
+      console.log('✅ Plugin UI: Notificação de sucesso enviada');
+      
+    } catch (error) {
+      console.error('❌ Plugin UI: Erro ao notificar sucesso:', error);
+    }
+  }
+  
+  // Notificar página web sobre erro
+  else if (msg && msg.type === 'notify-web-error') {
+    try {
+      // Notificar página web via postMessage
+      window.parent.postMessage({
+        type: 'command-error',
+        source: 'figma-plugin',
+        command: msg.command,
+        error: msg.error,
+        timestamp: msg.timestamp || Date.now(),
+        success: false
+      }, '*');
+      
+      console.log('📡 Plugin UI: Notificação de erro enviada');
+      
+    } catch (error) {
+      console.error('❌ Plugin UI: Erro ao notificar erro:', error);
+    }
+  }
+};
+
+// Log de inicialização com informações detalhadas
+console.log('🚀 Vicgario Plugin UI: Sistema de comunicação inicializado');
+console.log('🔧 Plugin UI: Informações do ambiente:');
+console.log('  - localStorage disponível:', window.isLocalStorageAvailable);
+console.log('  - Memória alternativa ativa:', window.pluginMemoryStore.size >= 0);
+console.log('  - Comandos em memória:', window.webCommands.length);
+console.log('🔗 Plugin UI: Pronto para comunicação com página web');
+
+// Manter status atualizado periodicamente no localStorage
+setInterval(() => {
+  try {
+    safeSetItem('figma-plugin-status', JSON.stringify({
+      connected: true,
+      timestamp: Date.now(),
+      capabilities: {
+        localStorage: window.isLocalStorageAvailable,
+        memoryStorage: true,
+        postMessage: true
+      }
+    }));
+    console.log('📊 Plugin UI: Status atualizado no localStorage');
+  } catch (error) {
+    console.log('ℹ️ Plugin UI: Erro ao atualizar status:', error);
+  }
+}, 3000); // A cada 3 segundos
+
+// Responder a verificações de ping da página web
+window.addEventListener('message', (event) => {
+  // Verificar se é um ping da página web
+  if (event.data && event.data.type === 'ping-plugin' && event.data.source === 'vicgario-web') {
+    console.log('🏓 Plugin UI: Ping recebido da página web, respondendo...');
+    
+    // Responder imediatamente
+    try {
+      window.parent.postMessage({
+        type: 'plugin-connected',
+        source: 'figma-plugin',
+        timestamp: Date.now(),
+        capabilities: {
+          localStorage: window.isLocalStorageAvailable,
+          memoryStorage: true,
+          postMessage: true
+        }
+      }, '*');
+      
+      // Também via broadcast
+      window.postMessage({
+        type: 'plugin-connected',
+        source: 'figma-plugin',
+        timestamp: Date.now(),
+        capabilities: {
+          localStorage: window.isLocalStorageAvailable,
+          memoryStorage: true,
+          postMessage: true
+        }
+      }, '*');
+      
+      console.log('✅ Plugin UI: Resposta ao ping enviada');
+    } catch (error) {
+      console.error('❌ Plugin UI: Erro ao responder ping:', error);
+    }
+  }
+});
+
+// Notificar página web que plugin está conectado - múltiplos canais para localhost
+try {
+  const connectionMessage = {
+    type: 'plugin-connected',
+    source: 'figma-plugin',
+    timestamp: Date.now(),
+    capabilities: {
+      localStorage: window.isLocalStorageAvailable,
+      memoryStorage: true,
+      postMessage: true
+    }
+  };
+  
+  // 1. Tentar comunicação direta via parent (para iframes)
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage(connectionMessage, '*');
+    console.log('📡 Plugin UI: Notificação enviada via parent');
+  }
+  
+  // 2. Tentar comunicação com window.top (para nested iframes)
+  if (window.top && window.top !== window) {
+    window.top.postMessage(connectionMessage, '*');
+    console.log('📡 Plugin UI: Notificação enviada via top');
+  }
+  
+  // 3. Broadcast global para todas as janelas
+  window.postMessage(connectionMessage, '*');
+  console.log('📡 Plugin UI: Notificação enviada via broadcast');
+  
+  // 4. Tentar enviar para localhost especificamente
+  try {
+    const localhostMessage = { ...connectionMessage, target: 'localhost' };
+    if (window.parent) {
+      window.parent.postMessage(localhostMessage, 'http://localhost:3000');
+      window.parent.postMessage(localhostMessage, 'https://localhost:3000');
+    }
+    console.log('📡 Plugin UI: Notificação enviada para localhost');
+  } catch (localhostError) {
+    console.log('ℹ️ Plugin UI: Comunicação localhost falhou (esperado em dev)');
+  }
+  
+  // 5. Marcar status no localStorage para páginas externas
+  safeSetItem('figma-plugin-status', JSON.stringify({
+    connected: true,
+    timestamp: Date.now(),
+    capabilities: {
+      localStorage: window.isLocalStorageAvailable,
+      memoryStorage: true,
+      postMessage: true
+    }
+  }));
+  console.log('📡 Plugin UI: Status salvo no armazenamento');
+  
+  // 6. Emitir evento customizado para detecção avançada
+  try {
+    window.dispatchEvent(new CustomEvent('figma-plugin-ready', {
+      detail: connectionMessage
+    }));
+    console.log('📡 Plugin UI: Evento customizado emitido');
+  } catch (eventError) {
+    console.log('ℹ️ Plugin UI: Evento customizado falhou');
+  }
+  
+} catch (error) {
+  console.error('❌ Plugin UI: Erro ao notificar conexão:', error);
+}
+
+// Função de debug para verificar estado do armazenamento
+window.debugStorage = function() {
+  console.log('🔍 Plugin UI - Estado do Armazenamento:');
+  console.log('  localStorage disponível:', window.isLocalStorageAvailable);
+  console.log('  Comandos na memória:', window.webCommands.length);
+  console.log('  Itens no memory store:', window.pluginMemoryStore.size);
+  console.log('  Comandos:', window.webCommands);
+  console.log('  Memory store:', Array.from(window.pluginMemoryStore.entries()));
+};
 </script>
 
 </body>

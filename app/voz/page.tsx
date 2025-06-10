@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Mic, MicOff, Send, Play, Pause, Volume2, Loader2, MessageSquare, Headphones, Globe, Search, ChevronDown, Settings, Sparkles, Zap } from "lucide-react"
+import { Mic, MicOff, Send, Play, Pause, Volume2, Loader2, MessageSquare, Headphones, Globe, Search, ChevronDown, Settings, Sparkles, Zap, Image, Paperclip, X } from "lucide-react"
 import { BrandplotCache } from "@/lib/brandplot-cache"
 import { SharedHeader } from "@/components/SharedHeader"
 import ReactMarkdown from 'react-markdown'
@@ -15,6 +15,8 @@ interface Message {
   timestamp: Date
   isPlaying?: boolean
   webSearchUsed?: boolean
+  imageUrl?: string
+  imageFile?: File
 }
 
 interface ProcessingStage {
@@ -36,9 +38,15 @@ export default function VozOtimizada() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false)
   
+  // Estados para upload de imagem
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  
   // Estados para controle de áudio
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
+  const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null)
   
   // Refs para controle
   const mediaRecorder = useRef<MediaRecorder | null>(null)
@@ -47,6 +55,7 @@ export default function VozOtimizada() {
   const recordingStartTime = useRef<number>(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Dados da empresa
   const [companyName, setCompanyName] = useState<string>("Sua Marca")
@@ -106,7 +115,7 @@ export default function VozOtimizada() {
   }, [])
 
   // Adicionar mensagem
-  const addMessage = (content: string, type: 'user' | 'assistant', mode: 'text' | 'voice', audioUrl?: string, webSearchUsed?: boolean) => {
+  const addMessage = (content: string, type: 'user' | 'assistant', mode: 'text' | 'voice', audioUrl?: string, webSearchUsed?: boolean, imageUrl?: string, imageFile?: File) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       type,
@@ -115,22 +124,29 @@ export default function VozOtimizada() {
       audioUrl,
       timestamp: new Date(),
       isPlaying: false,
-      webSearchUsed
+      webSearchUsed,
+      imageUrl,
+      imageFile
     }
     
     setMessages(prev => [...prev, newMessage])
     return newMessage.id
   }
 
-  // Enviar mensagem de texto
+    // Enviar mensagem de texto
   const sendTextMessage = async () => {
-    if (!inputText.trim() || isProcessing) return
+    if ((!inputText.trim() && !selectedImage) || isProcessing) return
     
-    const messageContent = inputText.trim()
+    const messageContent = inputText.trim() || "Analise esta imagem"
+    const currentImage = selectedImage
+    const currentImagePreview = imagePreview
+    
+    // Limpar inputs
     setInputText("")
+    removeSelectedImage()
     
     // Adicionar mensagem do usuário
-    addMessage(messageContent, 'user', 'text')
+    addMessage(messageContent, 'user', 'text', undefined, undefined, currentImagePreview || undefined, currentImage || undefined)
     
     try {
       setIsProcessing(true)
@@ -139,11 +155,11 @@ export default function VozOtimizada() {
       if (webSearchEnabled) {
         setCurrentProcessingStage(processingStages[2]) // searching
       } else {
-      setCurrentProcessingStage(processingStages[1]) // processing
+        setCurrentProcessingStage(processingStages[1]) // processing
       }
       
       // Processar com LLM (modo texto)
-      const llmResponse = await processWithLLM(messageContent, 'text')
+      const llmResponse = await processWithLLM(messageContent, 'text', currentImage || undefined)
       if (!llmResponse.success) {
         throw new Error(llmResponse.error || "Erro no processamento")
       }
@@ -317,22 +333,41 @@ export default function VozOtimizada() {
   }
 
   // Processar com LLM
-  const processWithLLM = async (userText: string, mode: 'text' | 'voice') => {
-    const response = await fetch('/api/voice/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        message: userText,
-        companyData: companyData,
-        companyName: companyName,
-        mode: mode,
-        webSearchEnabled: webSearchEnabled
+  const processWithLLM = async (userText: string, mode: 'text' | 'voice', imageFile?: File) => {
+    if (imageFile) {
+      // Para imagens, usar FormData
+      const formData = new FormData()
+      formData.append('message', userText)
+      formData.append('image', imageFile)
+      formData.append('companyData', JSON.stringify(companyData))
+      formData.append('companyName', companyName)
+      formData.append('mode', mode)
+      formData.append('webSearchEnabled', webSearchEnabled.toString())
+
+      const response = await fetch('/api/voice/chat-with-image', {
+        method: 'POST',
+        body: formData
       })
-    })
-    
-    return await response.json()
+      
+      return await response.json()
+    } else {
+      // Sem imagem, usar JSON normal
+      const response = await fetch('/api/voice/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          message: userText,
+          companyData: companyData,
+          companyName: companyName,
+          mode: mode,
+          webSearchEnabled: webSearchEnabled
+        })
+      })
+      
+      return await response.json()
+    }
   }
 
   // Gerar síntese de voz
@@ -401,6 +436,7 @@ export default function VozOtimizada() {
   // Gerar áudio para mensagem de texto
   const generateAudioForMessage = async (messageId: string, text: string) => {
     try {
+      setGeneratingAudioId(messageId)
       const ttsResponse = await generateSpeech(text)
       if (ttsResponse.success && ttsResponse.audioUrl) {
         setMessages(prev => prev.map(msg => 
@@ -413,6 +449,71 @@ export default function VozOtimizada() {
     } catch (err) {
       setError("Erro ao gerar áudio")
       setTimeout(() => setError(""), 3000)
+    } finally {
+      setGeneratingAudioId(null)
+    }
+  }
+
+  // Funções para manipular imagens
+  const handleImageSelect = (file: File) => {
+    if (file && file.type.startsWith('image/')) {
+      setSelectedImage(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleImageSelect(file)
+    }
+  }
+
+  const removeSelectedImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Drag and Drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    
+    const files = Array.from(e.dataTransfer.files)
+    const imageFile = files.find(file => file.type.startsWith('image/'))
+    
+    if (imageFile) {
+      handleImageSelect(imageFile)
+    }
+  }
+
+  // Paste (Ctrl+V)
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items)
+    const imageItem = items.find(item => item.type.startsWith('image/'))
+    
+    if (imageItem) {
+      const file = imageItem.getAsFile()
+      if (file) {
+        handleImageSelect(file)
+      }
     }
   }
 
@@ -489,8 +590,21 @@ export default function VozOtimizada() {
         {/* Messages Container */}
         <div 
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4"
+          className={`flex-1 overflow-y-auto p-4 space-y-4 relative ${isDragging ? 'bg-orange-500/10 border-2 border-dashed border-orange-500' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
+          {/* Drag overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 flex items-center justify-center bg-orange-500/20 backdrop-blur-sm z-40">
+              <div className="text-center text-white">
+                <Image className="w-12 h-12 mx-auto mb-2 text-orange-400" />
+                <p className="text-lg font-semibold">Solte a imagem aqui</p>
+                <p className="text-sm opacity-80">PNG, JPG, GIF aceitos</p>
+              </div>
+            </div>
+          )}
           {messages.length === 0 && (
             <div className="text-center text-white/60 mt-8">
               <div className="max-w-md mx-auto">
@@ -514,7 +628,19 @@ export default function VozOtimizada() {
                    : 'bg-[#2a251f] text-white border border-orange-500/20 shadow-lg'
                } rounded-2xl p-3 animate-in slide-in-from-bottom-2 duration-300`}>
                 
-                                 {/* Conteúdo da mensagem */}
+                                 {/* Imagem da mensagem */}
+                 {message.imageUrl && (
+                   <div className="mb-3">
+                     <img 
+                       src={message.imageUrl} 
+                       alt="Imagem enviada" 
+                       className="max-w-xs max-h-64 rounded-lg border border-white/20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                       onClick={() => window.open(message.imageUrl, '_blank')}
+                     />
+                   </div>
+                 )}
+                 
+                 {/* Conteúdo da mensagem */}
                  <div className="mb-2">
                    <div className={`text-sm leading-relaxed prose prose-invert prose-sm max-w-none ${
                      message.type === 'user' ? 'prose-orange' : 'prose-neutral'
@@ -611,10 +737,15 @@ export default function VozOtimizada() {
                     {message.type === 'assistant' && message.mode === 'text' && !message.audioUrl && (
                       <button
                         onClick={() => generateAudioForMessage(message.id, message.content)}
-                        className="p-1.5 rounded-full hover:bg-orange-500/20 transition-colors"
-                        title="Ouvir resposta"
+                        disabled={generatingAudioId === message.id}
+                        className="p-1.5 rounded-full hover:bg-orange-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={generatingAudioId === message.id ? "Gerando áudio..." : "Ouvir resposta"}
                       >
-                        <Volume2 className="w-3 h-3" />
+                        {generatingAudioId === message.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Volume2 className="w-3 h-3" />
+                        )}
                       </button>
                     )}
                   </div>
@@ -672,6 +803,27 @@ export default function VozOtimizada() {
 
                  {/* Input Container */}
          <div className="bg-[#2a251f] border-t border-orange-500/20 p-4">
+           {/* Preview da imagem selecionada */}
+           {imagePreview && (
+             <div className="mb-3 flex items-start space-x-3 p-3 bg-[#1a1814] rounded-xl border border-orange-500/20">
+               <img 
+                 src={imagePreview} 
+                 alt="Preview" 
+                 className="w-16 h-16 rounded-lg object-cover border border-white/20"
+               />
+               <div className="flex-1">
+                 <p className="text-white text-sm font-medium">Imagem selecionada</p>
+                 <p className="text-gray-400 text-xs">{selectedImage?.name}</p>
+               </div>
+               <button
+                 onClick={removeSelectedImage}
+                 className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
+               >
+                 <X className="w-4 h-4 text-red-400" />
+               </button>
+             </div>
+           )}
+           
            <div className="flex items-end space-x-2 sm:space-x-3">
              
              {/* Ferramentas Dropdown */}
@@ -780,6 +932,25 @@ export default function VozOtimizada() {
                )}
              </div>
              
+             {/* Upload Button */}
+             <button
+               onClick={() => fileInputRef.current?.click()}
+               disabled={isProcessing}
+               className="p-3 bg-[#1a1814] border border-orange-500/30 rounded-xl text-white hover:border-orange-500 hover:bg-[#2a251f] transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+               title="Anexar imagem"
+             >
+               <Paperclip className="w-5 h-5" />
+             </button>
+
+             {/* Hidden File Input */}
+             <input
+               ref={fileInputRef}
+               type="file"
+               accept="image/*"
+               onChange={handleFileInputChange}
+               className="hidden"
+             />
+             
              {/* Text Input */}
              <div className="flex-1">
                <div className="relative">
@@ -788,7 +959,8 @@ export default function VozOtimizada() {
                    value={inputText}
                    onChange={(e) => setInputText(e.target.value)}
                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendTextMessage()}
-                   placeholder="Digite uma mensagem..."
+                   onPaste={handlePaste}
+                   placeholder={selectedImage ? "Descreva o que quer saber sobre a imagem..." : "Digite uma mensagem ou cole/arraste uma imagem..."}
                    disabled={isProcessing}
                    className="w-full bg-[#1a1814] border border-orange-500/30 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 transition-all"
                  />
@@ -812,7 +984,7 @@ export default function VozOtimizada() {
              {/* Send Button */}
              <button
                onClick={sendTextMessage}
-               disabled={!inputText.trim() || isProcessing}
+               disabled={(!inputText.trim() && !selectedImage) || isProcessing}
                className="p-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all transform hover:scale-105 active:scale-95 disabled:transform-none"
                title="Enviar mensagem"
              >

@@ -462,12 +462,63 @@ export default function Dashboard() {
               </div>
             </motion.div>
 
+            {/* Card: Edição no Figma */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="bg-gradient-to-br from-purple-500/[0.12] to-purple-600/[0.04] backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6 md:p-8 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500/20 to-purple-600/20 flex items-center justify-center border border-purple-500/30">
+                    <Palette className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white">Visualização no Figma</h2>
+                </div>
+                <span className="bg-gradient-to-r from-purple-500/15 to-purple-600/10 text-purple-300 text-xs font-medium px-3 py-1 rounded-full border border-purple-500/20">
+                  Design
+                </span>
+              </div>
+              
+              <p className="text-white/80 mb-6 leading-relaxed">
+                Edite aqui no Figma seu layout de postagem e outros materiais gráficos para <span className="font-bold text-purple-300">{companyName}</span>. 
+                Acesse templates personalizados e ferramentas de design colaborativo.
+              </p>
+
+              <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/30 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <ImageIcon className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-purple-200 mb-1">Recursos disponíveis:</h3>
+                    <ul className="text-sm text-purple-200/80 space-y-1">
+                      <li>• Templates de postagem para redes sociais</li>
+                      <li>• Layouts personalizados para sua marca</li>
+                      <li>• Paleta de cores e tipografia oficial</li>
+                      <li>• Elementos gráficos exclusivos</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <Button asChild className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-medium border-0 px-8 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+                  <Link href="/figma" className="flex items-center gap-2">
+                    Abrir
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </div>
+            </motion.div>
+
             {/* Card: Guidelines (quando estratégia existe) */}
             {estrategia && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.6 }}
+                transition={{ delay: 0.7, duration: 0.6 }}
                 className="bg-gradient-to-br from-[#c8b79e]/[0.15] to-[#c8b79e]/[0.05] backdrop-blur-sm border border-[#c8b79e]/20 rounded-2xl p-6 md:p-8 shadow-xl"
               >
                 <div className="flex items-center gap-3 mb-4">
