@@ -1879,35 +1879,78 @@ window.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'ping-plugin' && event.data.source === 'vicgario-web') {
     console.log('🏓 Plugin UI: Ping recebido da página web, respondendo...');
     
-    // Responder imediatamente
+    // Responder imediatamente com múltiplos métodos
     try {
-      window.parent.postMessage({
+      const responseMessage = {
         type: 'plugin-connected',
         source: 'figma-plugin',
         timestamp: Date.now(),
+        pingId: event.data.id,
         capabilities: {
           localStorage: window.isLocalStorageAvailable,
           memoryStorage: true,
           postMessage: true
         }
-      }, '*');
+      };
       
-      // Também via broadcast
-      window.postMessage({
-        type: 'plugin-connected',
-        source: 'figma-plugin',
+      // 1. Resposta via parent
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(responseMessage, '*');
+      }
+      
+      // 2. Resposta via top
+      if (window.top && window.top !== window) {
+        window.top.postMessage(responseMessage, '*');
+      }
+      
+      // 3. Broadcast global
+      window.postMessage(responseMessage, '*');
+      
+      // 4. Tentar localhost específico
+      try {
+        if (window.parent) {
+          window.parent.postMessage(responseMessage, 'http://localhost:3000');
+          window.parent.postMessage(responseMessage, 'https://localhost:3000');
+          window.parent.postMessage(responseMessage, 'https://ia.vicgar.io');
+        }
+      } catch (e) {
+        // Cross-origin, ignorar
+      }
+      
+      // 5. Atualizar localStorage com resposta
+      safeSetItem('figma-plugin-status', JSON.stringify({
+        connected: true,
         timestamp: Date.now(),
+        lastPing: event.data.id,
         capabilities: {
           localStorage: window.isLocalStorageAvailable,
           memoryStorage: true,
           postMessage: true
         }
-      }, '*');
+      }));
       
-      console.log('✅ Plugin UI: Resposta ao ping enviada');
+      console.log('✅ Plugin UI: Resposta ao ping enviada via múltiplos canais');
     } catch (error) {
       console.error('❌ Plugin UI: Erro ao responder ping:', error);
     }
+  }
+  
+  // Verificar se é um ping via localStorage
+  if (event.data && event.data.type === 'ping-plugin') {
+    console.log('🔔 Plugin UI: Ping detectado (qualquer tipo), reforçando resposta...');
+    
+    // Resposta adicional via localStorage
+    safeSetItem('figma-plugin-pong', JSON.stringify({
+      type: 'pong',
+      source: 'figma-plugin',
+      timestamp: Date.now(),
+      originalPing: event.data
+    }));
+    
+    // Auto-remover pong após 5 segundos
+    setTimeout(() => {
+      safeRemoveItem('figma-plugin-pong');
+    }, 5000);
   }
 });
 

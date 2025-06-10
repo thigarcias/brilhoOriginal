@@ -463,7 +463,7 @@ export default function Dashboard() {
             </motion.div>
 
             {/* Card: Edição no Figma */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.6 }}
@@ -511,7 +511,7 @@ export default function Dashboard() {
                   </Link>
                 </Button>
               </div>
-            </motion.div>
+            </motion.div> */}
 
             {/* Card: Guidelines (quando estratégia existe) */}
             {estrategia && (

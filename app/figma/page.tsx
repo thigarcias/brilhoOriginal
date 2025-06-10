@@ -308,46 +308,139 @@ const pluginCommunication = {
   // Verificar se o plugin está conectado
   async checkPluginConnection(): Promise<boolean> {
     try {
+      console.log('🔍 Verificando conexão do plugin...')
+      
       // 1. Verificar via localStorage se o plugin está ativo (método mais rápido)
-      const pluginStatus = localStorage.getItem('figma-plugin-status')
-      if (pluginStatus) {
-        const status = JSON.parse(pluginStatus)
-        const timeDiff = Date.now() - status.timestamp
-        
-        // Considerar conectado se status foi atualizado nos últimos 10 segundos
-        if (timeDiff < 10000 && status.connected) {
-          console.log('✅ Plugin detectado via armazenamento:', status)
-          return true
+      try {
+        const pluginStatus = localStorage.getItem('figma-plugin-status')
+        if (pluginStatus) {
+          const status = JSON.parse(pluginStatus)
+          const timeDiff = Date.now() - status.timestamp
+          
+          // Considerar conectado se status foi atualizado nos últimos 10 segundos
+          if (timeDiff < 10000 && status.connected) {
+            console.log('✅ Plugin detectado via localStorage:', status)
+            return true
+          }
         }
+        
+        // Verificar também se há pong recente
+        const pluginPong = localStorage.getItem('figma-plugin-pong')
+        if (pluginPong) {
+          const pong = JSON.parse(pluginPong)
+          const timeDiff = Date.now() - pong.timestamp
+          
+          if (timeDiff < 5000 && pong.source === 'figma-plugin') {
+            console.log('✅ Plugin detectado via pong:', pong)
+            
+            // Atualizar status principal
+            localStorage.setItem('figma-plugin-status', JSON.stringify({
+              connected: true,
+              timestamp: Date.now(),
+              detectedVia: 'pong'
+            }))
+            
+            return true
+          }
+        }
+      } catch (storageError) {
+        console.log('ℹ️ Erro ao verificar localStorage:', storageError)
       }
       
-      // 2. Tentar comunicação direta via postMessage com ping específico
+      // 2. Tentar comunicação direta via postMessage com ping mais agressivo
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
-          console.log('⏱️ Timeout na verificação do plugin')
+          console.log('⏱️ Timeout na verificação do plugin (3s)')
           resolve(false)
         }, 3000)
         
+        let responseReceived = false
+        
         const handler = (event: MessageEvent) => {
-          if (event.data && event.data.source === 'figma-plugin' && 
-              (event.data.type === 'plugin-connected' || event.data.type === 'command-processed')) {
-            clearTimeout(timeout)
-            window.removeEventListener('message', handler)
-            console.log('✅ Plugin respondeu à verificação')
-            resolve(true)
+          if (responseReceived) return
+          
+          if (event.data && event.data.source === 'figma-plugin') {
+            console.log('📨 Resposta do plugin recebida:', event.data.type)
+            
+            if (event.data.type === 'plugin-connected' || 
+                event.data.type === 'command-processed' ||
+                event.data.type === 'pong' ||
+                event.data.type === 'notify-web-success') {
+              
+              responseReceived = true
+              clearTimeout(timeout)
+              window.removeEventListener('message', handler)
+              
+              // Atualizar localStorage com status positivo
+              try {
+                localStorage.setItem('figma-plugin-status', JSON.stringify({
+                  connected: true,
+                  timestamp: Date.now(),
+                  lastResponse: event.data.type
+                }))
+              } catch (e) {
+                console.log('ℹ️ Não foi possível atualizar localStorage')
+              }
+              
+              console.log('✅ Plugin confirmado como conectado')
+              resolve(true)
+            }
           }
         }
         
         window.addEventListener('message', handler)
         
-        // Solicitar resposta do plugin via broadcast
-        window.postMessage({
+        // Enviar múltiplos pings para aumentar chance de detecção
+        const pingMessage = {
           type: 'ping-plugin',
           source: 'vicgario-web',
-          timestamp: Date.now()
-        }, '*')
+          timestamp: Date.now(),
+          id: Math.random().toString(36).substr(2, 9)
+        }
         
-        console.log('📡 Verificação de plugin enviada')
+        // Ping 1: Broadcast imediato
+        window.postMessage(pingMessage, '*')
+        
+        // Ping 2: Para parent se em iframe
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage(pingMessage, '*')
+          } catch (e) {
+            console.log('ℹ️ Ping para parent falhou')
+          }
+        }
+        
+        // Ping 3: Para todos os iframes
+        try {
+          const iframes = document.querySelectorAll('iframe')
+          iframes.forEach(iframe => {
+            try {
+              iframe.contentWindow?.postMessage(pingMessage, '*')
+            } catch (e) {
+              // Cross-origin, ignorar
+            }
+          })
+        } catch (e) {
+          console.log('ℹ️ Ping para iframes falhou')
+        }
+        
+        // Ping 4: Via localStorage como fallback
+        try {
+          localStorage.setItem('figma-plugin-ping', JSON.stringify(pingMessage))
+          
+          // Remover ping após 2 segundos
+          setTimeout(() => {
+            try {
+              localStorage.removeItem('figma-plugin-ping')
+            } catch (e) {
+              // Ignorar erro
+            }
+          }, 2000)
+        } catch (e) {
+          console.log('ℹ️ Ping via localStorage falhou')
+        }
+        
+        console.log('📡 Múltiplos pings enviados para verificação do plugin')
       })
       
     } catch (error) {
@@ -818,10 +911,10 @@ export default function FigmaPage() {
           const status = JSON.parse(pluginStatus)
           const timeDiff = Date.now() - status.timestamp
           
-          // Considerar conectado se status foi atualizado nos últimos 10 segundos
-          if (timeDiff < 10000 && status.connected) {
+          // Considerar conectado se status foi atualizado nos últimos 15 segundos
+          if (timeDiff < 15000 && status.connected) {
             if (!isPluginConnected) {
-              console.log('✅ Plugin detectado via localStorage')
+              console.log('✅ Plugin detectado via localStorage:', status)
               setIsPluginConnected(true)
             }
             return
@@ -836,9 +929,11 @@ export default function FigmaPage() {
             const commandAge = Date.now() - command.timestamp
             
             // Se há comandos recentes, o plugin provavelmente está ativo
-            if (commandAge < 30000) { // 30 segundos
+            if (commandAge < 45000) { // 45 segundos
               console.log('🔄 Plugin detectado via comandos pendentes')
-              setIsPluginConnected(true)
+              if (!isPluginConnected) {
+                setIsPluginConnected(true)
+              }
               return
             }
           } catch (e) {
@@ -846,7 +941,7 @@ export default function FigmaPage() {
           }
         }
         
-        // 3. Enviar ping direto se localStorage não tem info recente
+        // 3. Enviar ping direto e aguardar resposta
         const isConnected: boolean = await pluginCommunication.checkPluginConnection()
         if (isConnected !== isPluginConnected) {
           setIsPluginConnected(isConnected)
@@ -859,15 +954,15 @@ export default function FigmaPage() {
       }
     }
     
-    // Verificação inicial mais rápida (500ms)
+    // Verificação inicial mais rápida (100ms)
     const initialCheck = setTimeout(() => {
       checkPluginStatus()
-    }, 500)
+    }, 100)
     
     // Verificação periódica mais agressiva para localhost
     pluginCheckInterval = setInterval(() => {
       checkPluginStatus()
-    }, 3000) // A cada 3 segundos (mais frequente para dev)
+    }, 2000) // A cada 2 segundos
     
     return () => {
       clearTimeout(initialCheck)
@@ -1131,17 +1226,25 @@ export default function FigmaPage() {
                             {isFigmaConnected ? 'REST API Conectada' : 'Carregando dados...'}
                           </p>
                           <p className="text-white/60 text-xs">
-                            Plugin: {isPluginConnected ? 'Conectado' : 'Aguardando'}
+                            Plugin: {isPluginConnected ? 
+                              <span className="text-green-400">✅ Conectado</span> : 
+                              <span className="text-yellow-400">⏳ Procurando...</span>
+                            }
                           </p>
                           {isFigmaConnected && (
                             <p className="text-[#c8b79e] text-xs mt-1">
                               ✨ Dados reais do arquivo
                             </p>
                           )}
+                          {!isPluginConnected && (
+                            <p className="text-yellow-400/80 text-xs mt-1">
+                              💡 Abra o plugin no Figma
+                            </p>
+                          )}
                         </div>
                         <div className="flex flex-col gap-1">
                           <div className={`w-3 h-3 rounded-full ${isFigmaConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                          <div className={`w-3 h-3 rounded-full ${isPluginConnected ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                          <div className={`w-3 h-3 rounded-full ${isPluginConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500 animate-pulse'}`} />
                         </div>
                       </div>
                       

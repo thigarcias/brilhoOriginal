@@ -11,9 +11,15 @@ let previousTextStates = [];
 function startWebCommunication() {
   console.log('🌐 Vicgario Plugin: Iniciando comunicação robusta com página web...');
   
-  // Verificar comandos pendentes a cada 2 segundos
+  // Notificar imediatamente que o plugin está ativo
+  setPluginStatus(true);
+  
+  // Verificar comandos pendentes a cada 1 segundo (mais frequente)
   setInterval(async () => {
     try {
+      // Atualizar status do plugin constantemente
+      setPluginStatus(true);
+      
       // Verificar se há comando pendente
       const pendingCommand = await checkForWebCommand();
       
@@ -43,9 +49,18 @@ function startWebCommunication() {
     } catch (communicationError) {
       console.error('❌ Vicgario Plugin: Erro na comunicação web:', communicationError);
     }
-  }, 2000);
+  }, 1000); // Reduzido de 2000 para 1000ms
   
   console.log('✅ Vicgario Plugin: Sistema de comunicação web ativo');
+}
+
+// Função para definir status do plugin no localStorage
+function setPluginStatus(isActive) {
+  figma.ui.postMessage({
+    type: 'set-plugin-status',
+    active: isActive,
+    timestamp: Date.now()
+  });
 }
 
 // Verificar se há comando pendente da página web

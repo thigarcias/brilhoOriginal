@@ -103,32 +103,28 @@ Você é o consultor visual que o empresário deseja ter ao lado para fortalecer
         {
           role: "system",
           content: systemPrompt
-        },
-        {
+        },        {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: message || "Analise esta imagem do ponto de vista de branding e design."
             },
             {
-              type: "image_url",
-              image_url: {
-                url: `data:${imageMimeType};base64,${imageBase64}`
-              }
+              type: "input_image",
+              image_url: `data:${imageMimeType};base64,${imageBase64}`,
+              detail: "high"
             }
           ]
         }
-      ],
-      tools: tools,
+      ],      tools: tools,
       text: {
         format: {
           type: "text"
         }
       },
       max_output_tokens: mode === 'voice' ? 400 : 800,
-      temperature: 0.7,
-    })
+      temperature: 0.7,    })
 
     const assistantResponse = completion.output_text
 
@@ -138,14 +134,6 @@ Você é o consultor visual que o empresário deseja ter ao lado para fortalecer
         { status: 500 }
       )
     }
-
-    // Debug: Log da resposta completa para verificar estrutura
-    console.log('Image Analysis Debug:', {
-      webSearchEnabled,
-      hasOutput: !!completion.output,
-      outputLength: completion.output?.length,
-      responsePreview: assistantResponse.substring(0, 200)
-    })
 
     // Na Responses API, verificar se houve web search pelos output items
     const hasWebSearchCall = completion.output?.some((item: any) => 
@@ -161,14 +149,6 @@ Você é o consultor visual que o empresário deseja ter ao lado para fortalecer
     )
 
     const webSearchUsed = webSearchEnabled && (hasWebSearchCall || hasUrlCitations)
-
-    console.log('Image Analysis Result:', {
-      webSearchEnabled,
-      hasWebSearchCall,
-      hasUrlCitations,
-      webSearchUsed,
-      outputItems: completion.output?.map((item: any) => item.type)
-    })
 
     return NextResponse.json({
       success: true,
