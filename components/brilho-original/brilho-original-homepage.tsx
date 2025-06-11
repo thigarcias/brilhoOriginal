@@ -18,6 +18,8 @@ import {
   Users,
   TrendingUp,
   MessageSquareQuote,
+  Menu,
+  X,
 } from "lucide-react"
 import { BrandplotCache } from "@/lib/brandplot-cache"
 import { AuthManager } from "@/lib/auth-utils"
@@ -37,6 +39,7 @@ export default function BrilhoOriginalHomepage({
   const [activeTab, setActiveTab] = useState<"branding" | "score" | "insights">("branding")
   const [companyName, setCompanyName] = useState<string | null>(null)
   const [isLogged, setIsLogged] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const startSectionRef = useRef<HTMLDivElement>(null)
   const benefitsSectionRef = useRef<HTMLDivElement>(null)
@@ -103,7 +106,6 @@ export default function BrilhoOriginalHomepage({
         "Após receber seu diagnóstico, você pode implementar as recomendações por conta própria ou contratar nossos serviços de consultoria para ajudá-lo no processo. Oferecemos planos específicos para diferentes necessidades e orçamentos.",
     },
   ]
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       // Verifica se há usuário realmente logado usando o AuthManager
@@ -125,6 +127,20 @@ export default function BrilhoOriginalHomepage({
       setIsLogged(false)
     }
   }, [])
+
+  // Fechar menu mobile quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuOpen && !(event.target as Element).closest('header')) {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [mobileMenuOpen])
 
   const handleLogout = () => {
     // Limpar dados do usuário logado usando o AuthManager
@@ -184,109 +200,197 @@ export default function BrilhoOriginalHomepage({
         />
       </div>
 
-      <div className="relative z-10">
-        {/* Navigation */}
+      <div className="relative z-10">        {/* Navigation */}
         <header className="fixed top-0 left-0 right-0 z-50 bg-[#1a1814]/80 backdrop-blur-md border-b border-white/10">
-          <div className="container mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
-                <Image
-                  src="/images/brandplot-logo.png"
-                  alt="BrandPlot"
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
+          <div className="container mx-auto px-4 md:px-6 py-4">
+            <div className="flex justify-between items-center">
+              {/* Logo */}
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
+                  <Image
+                    src="/images/brandplot-logo.png"
+                    alt="BrandPlot"
+                    width={24}
+                    height={24}
+                    className="rounded-full"
+                  />
+                </div>
+                <span className="text-white font-medium">BrandPlot</span>
               </div>
-              <span className="text-white font-medium">BrandPlot</span>
-            </div>
 
-            <nav className="hidden md:flex items-center gap-8">
-              <button
-                onClick={() => scrollToSection(benefitsSectionRef)}
-                className="text-white/60 hover:text-white transition-colors text-sm"
-              >
-                Benefícios
-              </button>
-              <button
-                onClick={() => scrollToSection(processSectionRef)}
-                className="text-white/60 hover:text-white transition-colors text-sm"
-              >
-                Como Funciona
-              </button>
-              <button
-                onClick={() => scrollToSection(previewSectionRef)}
-                className="text-white/60 hover:text-white transition-colors text-sm"
-              >
-                Prévia
-              </button>
-              <button
-                onClick={() => scrollToSection(faqSectionRef)}
-                className="text-white/60 hover:text-white transition-colors text-sm"
-              >
-                FAQ
-              </button>
-            </nav>
-
-            <div className="flex items-center gap-4">
-              {!isLogged && (
-                <Link
-                  href="/login"
-                  className="text-white/60 hover:text-white transition-colors text-sm hidden md:block"
+              {/* Desktop Navigation */}
+              <nav className="hidden lg:flex items-center gap-8">
+                <button
+                  onClick={() => scrollToSection(benefitsSectionRef)}
+                  className="text-white/60 hover:text-white transition-colors text-sm"
                 >
-                  Login
-                </Link>
-              )}
-              <button
-                onClick={handleStart}
-                className="px-4 py-2 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
-              >
-                {isLogged ? 'Ir para Dashboard' : 'Começar Diagnóstico'}
-              </button>
-              {isLogged && (
-                <div className="flex items-center gap-4">
+                  Benefícios
+                </button>
+                <button
+                  onClick={() => scrollToSection(processSectionRef)}
+                  className="text-white/60 hover:text-white transition-colors text-sm"
+                >
+                  Como Funciona
+                </button>
+                <button
+                  onClick={() => scrollToSection(previewSectionRef)}
+                  className="text-white/60 hover:text-white transition-colors text-sm"
+                >
+                  Prévia
+                </button>
+                <button
+                  onClick={() => scrollToSection(faqSectionRef)}
+                  className="text-white/60 hover:text-white transition-colors text-sm"
+                >
+                  FAQ
+                </button>
+              </nav>
+
+              {/* Desktop Auth & CTA */}
+              <div className="hidden lg:flex items-center gap-4">
+                {!isLogged && (
+                  <Link
+                    href="/login"
+                    className="text-white/60 hover:text-white transition-colors text-sm"
+                  >
+                    Login
+                  </Link>
+                )}
+                <button
+                  onClick={handleStart}
+                  className="px-4 py-2 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
+                >
+                  {isLogged ? 'Dashboard' : 'Começar'}
+                </button>
+                {isLogged && (
                   <button
                     onClick={handleLogout}
-                    className="text-white/60 hover:text-[#c8b79e] transition-colors text-sm border-0 bg-transparent"
+                    className="text-white/60 hover:text-[#c8b79e] transition-colors text-sm"
                   >
                     Sair
                   </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+                )}
+              </div>
 
-        {/* Hero Section */}
-        <section className="relative pt-24 md:pt-32 pb-16 md:pb-24">
-          <div className="container mx-auto px-4 md:px-6 min-h-[80vh] flex flex-col justify-center">
-            <div className="max-w-3xl mx-auto text-center">
+              {/* Mobile Menu Button */}
+              <div className="lg:hidden flex items-center gap-3">
+                <button
+                  onClick={handleStart}
+                  className="px-3 py-2 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white text-xs font-medium rounded-lg transition-all duration-300"
+                >
+                  {isLogged ? 'Dashboard' : 'Começar'}
+                </button>
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="p-2 text-white/60 hover:text-white transition-colors"
+                >
+                  {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Menu */}
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="lg:hidden mt-4 py-4 border-t border-white/10"
+              >
+                <div className="flex flex-col space-y-4">
+                  <button
+                    onClick={() => {
+                      scrollToSection(benefitsSectionRef)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="text-white/60 hover:text-white transition-colors text-sm text-left"
+                  >
+                    Benefícios
+                  </button>
+                  <button
+                    onClick={() => {
+                      scrollToSection(processSectionRef)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="text-white/60 hover:text-white transition-colors text-sm text-left"
+                  >
+                    Como Funciona
+                  </button>
+                  <button
+                    onClick={() => {
+                      scrollToSection(previewSectionRef)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="text-white/60 hover:text-white transition-colors text-sm text-left"
+                  >
+                    Prévia
+                  </button>
+                  <button
+                    onClick={() => {
+                      scrollToSection(faqSectionRef)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="text-white/60 hover:text-white transition-colors text-sm text-left"
+                  >
+                    FAQ
+                  </button>
+                  
+                  {!isLogged && (
+                    <Link
+                      href="/login"
+                      className="text-white/60 hover:text-white transition-colors text-sm text-left border-t border-white/10 pt-4"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Login
+                    </Link>
+                  )}
+                  
+                  {isLogged && (
+                    <button
+                      onClick={() => {
+                        handleLogout()
+                        setMobileMenuOpen(false)
+                      }}
+                      className="text-white/60 hover:text-[#c8b79e] transition-colors text-sm text-left border-t border-white/10 pt-4"
+                    >
+                      Sair
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </header>        {/* Hero Section */}
+        <section className="relative pt-28 md:pt-32 pb-16 md:pb-24">
+          <div className="container mx-auto px-4 md:px-6 min-h-[calc(100vh-7rem)] md:min-h-[80vh] flex flex-col justify-center">
+            <div className="max-w-4xl mx-auto text-center">
               <motion.div
                 custom={0}
                 variants={fadeUpVariants}
                 initial="hidden"
                 animate="visible"
-                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-8 md:mb-12"
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-6 md:mb-8 lg:mb-12"
               >
                 <Image
                   src="/images/brandplot-logo.png"
                   alt="BrandPlot"
-                  width={24}
-                  height={24}
-                  className="rounded-full"
+                  width={20}
+                  height={20}
+                  className="rounded-full md:w-6 md:h-6"
                 />
-                <span className="text-sm text-white/60 tracking-wide">{badge}</span>
+                <span className="text-xs md:text-sm text-white/60 tracking-wide">{badge}</span>
               </motion.div>
 
               <motion.div custom={1} variants={fadeUpVariants} initial="hidden" animate="visible">
-                <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold mb-6 md:mb-8 tracking-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-4 md:mb-6 lg:mb-8 tracking-tight leading-tight">
                   <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-white/80">
                     Transforme sua
                   </span>
                   <br />
                   <span
                     className={cn(
-                      "bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-[#c8b79e] to-amber-200 pr-4",
+                      "bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-[#c8b79e] to-amber-200 pr-2 md:pr-4",
                       pacifico.className,
                     )}
                   >
@@ -296,7 +400,7 @@ export default function BrilhoOriginalHomepage({
               </motion.div>
 
               <motion.div custom={2} variants={fadeUpVariants} initial="hidden" animate="visible">
-                <p className="text-base sm:text-lg md:text-xl text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
+                <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/40 mb-6 md:mb-8 leading-relaxed font-light tracking-wide max-w-2xl mx-auto px-2">
                   {isLogged && companyName 
                     ? `Bem-vindo de volta! Continue explorando o potencial da ${companyName} com nossas ferramentas avançadas de branding.`
                     : "Descubra o verdadeiro potencial da sua marca com nosso diagnóstico personalizado. Impulsione seu negócio com insights poderosos e estratégias acionáveis."
@@ -305,15 +409,15 @@ export default function BrilhoOriginalHomepage({
               </motion.div>
 
               <motion.div custom={3} variants={fadeUpVariants} initial="hidden" animate="visible">
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 px-4">
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-3 md:gap-4 px-2">
                   <button
                     onClick={handleStart}
-                    className="group relative px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 w-full sm:w-auto shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30 flex items-center justify-center gap-2"
+                    className="group relative px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 w-full sm:w-auto shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30 flex items-center justify-center gap-2"
                   >
-                    <span className="relative z-10 text-lg">
+                    <span className="relative z-10 text-sm md:text-base lg:text-lg">
                       {isLogged ? 'Acessar Dashboard' : 'Começar Diagnóstico Gratuito'}
                     </span>
-                    <ArrowRight className="w-5 h-5" />
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
                     <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                   </button>
                 </div>
@@ -322,38 +426,34 @@ export default function BrilhoOriginalHomepage({
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#1a1814] to-transparent" />
-        </section>
-
-        {/* Benefits Section */}
-        <section ref={benefitsSectionRef} className="py-16 md:py-24 relative">
+        </section>        {/* Benefits Section */}
+        <section ref={benefitsSectionRef} className="py-12 md:py-16 lg:py-24 relative">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="text-center mb-12 md:mb-16">
+            <div className="text-center mb-8 md:mb-12 lg:mb-16">
               <span className="inline-block px-3 py-1 rounded-full bg-[#c8b79e]/10 text-[#c8b79e] text-sm font-medium mb-4">
                 Benefícios
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 px-4">
                 Por que fazer um diagnóstico de marca?
               </h2>
-              <p className="text-white/60 max-w-2xl mx-auto">
+              <p className="text-white/60 max-w-2xl mx-auto text-sm md:text-base px-4">
                 Descubra como nossa análise profunda pode transformar sua marca e impulsionar seu negócio com
                 insights acionáveis.
               </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            </div><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
               {/* Benefit 1 */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
                 viewport={{ once: true }}
-                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 md:p-8"
+                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-4 md:p-6 lg:p-8"
               >
-                <div className="w-12 h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-6">
-                  <Target className="w-6 h-6 text-[#c8b79e]" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-4 md:mb-6">
+                  <Target className="w-5 h-5 md:w-6 md:h-6 text-[#c8b79e]" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Clareza de Posicionamento</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Clareza de Posicionamento</h3>
+                <p className="text-white/60 text-sm md:text-base">
                   Entenda exatamente onde sua marca se posiciona no mercado e como se diferencia da concorrência,
                   criando uma proposta de valor única.
                 </p>
@@ -365,13 +465,13 @@ export default function BrilhoOriginalHomepage({
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
                 viewport={{ once: true }}
-                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 md:p-8"
+                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-4 md:p-6 lg:p-8"
               >
-                <div className="w-12 h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-6">
-                  <Users className="w-6 h-6 text-[#c8b79e]" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-4 md:mb-6">
+                  <Users className="w-5 h-5 md:w-6 md:h-6 text-[#c8b79e]" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Conexão com o Público</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Conexão com o Público</h3>
+                <p className="text-white/60 text-sm md:text-base">
                   Identifique seu público ideal e descubra como criar mensagens que ressoam emocionalmente,
                   construindo relacionamentos mais fortes.
                 </p>
@@ -383,13 +483,13 @@ export default function BrilhoOriginalHomepage({
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
                 viewport={{ once: true }}
-                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 md:p-8"
+                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-4 md:p-6 lg:p-8"
               >
-                <div className="w-12 h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-6">
-                  <BarChart3 className="w-6 h-6 text-[#c8b79e]" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-4 md:mb-6">
+                  <BarChart3 className="w-5 h-5 md:w-6 md:h-6 text-[#c8b79e]" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Estratégia Acionável</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Estratégia Acionável</h3>
+                <p className="text-white/60 text-sm md:text-base">
                   Receba recomendações práticas e específicas que você pode implementar imediatamente para melhorar
                   a percepção da sua marca.
                 </p>
@@ -401,13 +501,13 @@ export default function BrilhoOriginalHomepage({
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
                 viewport={{ once: true }}
-                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 md:p-8"
+                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-4 md:p-6 lg:p-8"
               >
-                <div className="w-12 h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-6">
-                  <TrendingUp className="w-6 h-6 text-[#c8b79e]" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-4 md:mb-6">
+                  <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-[#c8b79e]" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Crescimento Acelerado</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Crescimento Acelerado</h3>
+                <p className="text-white/60 text-sm md:text-base">
                   Elimine obstáculos invisíveis que estão limitando seu crescimento e descubra oportunidades
                   inexploradas para expandir sua marca.
                 </p>
@@ -419,13 +519,13 @@ export default function BrilhoOriginalHomepage({
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
                 viewport={{ once: true }}
-                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 md:p-8"
+                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-4 md:p-6 lg:p-8"
               >
-                <div className="w-12 h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-6">
-                  <MessageSquareQuote className="w-6 h-6 text-[#c8b79e]" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-4 md:mb-6">
+                  <MessageSquareQuote className="w-5 h-5 md:w-6 md:h-6 text-[#c8b79e]" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Narrativa Poderosa</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Narrativa Poderosa</h3>
+                <p className="text-white/60 text-sm md:text-base">
                   Desenvolva uma história de marca convincente que comunica sua essência e cria uma conexão
                   emocional duradoura com seus clientes.
                 </p>
@@ -437,35 +537,33 @@ export default function BrilhoOriginalHomepage({
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.5 }}
                 viewport={{ once: true }}
-                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 md:p-8"
+                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-4 md:p-6 lg:p-8 sm:col-span-2 lg:col-span-1"
               >
-                <div className="w-12 h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-6">
-                  <CheckCircle className="w-6 h-6 text-[#c8b79e]" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#c8b79e]/10 flex items-center justify-center mb-4 md:mb-6">
+                  <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-[#c8b79e]" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Vantagem Competitiva</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Vantagem Competitiva</h3>
+                <p className="text-white/60 text-sm md:text-base">
                   Destaque-se em um mercado saturado com um posicionamento claro e diferenciado que ressoa com seu
                   público-alvo ideal.
                 </p>
               </motion.div>
             </div>
           </div>
-        </section>
-
-        {/* Process Section */}
-        <section ref={processSectionRef} className="py-16 md:py-24 relative bg-[#1a1814]/50">
+        </section>        {/* Process Section */}
+        <section ref={processSectionRef} className="py-12 md:py-16 lg:py-24 relative bg-[#1a1814]/50">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="text-center mb-12 md:mb-16">
+            <div className="text-center mb-8 md:mb-12 lg:mb-16">
               <span className="inline-block px-3 py-1 rounded-full bg-[#c8b79e]/10 text-[#c8b79e] text-sm font-medium mb-4">
                 Processo
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Como funciona o diagnóstico</h2>
-              <p className="text-white/60 max-w-2xl mx-auto">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 px-4">Como funciona o diagnóstico</h2>
+              <p className="text-white/60 max-w-2xl mx-auto text-sm md:text-base px-4">
                 Um processo simples e rápido para transformar sua marca em apenas 3 passos
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6 md:gap-12">
+            <div className="grid gap-6 md:grid-cols-3 md:gap-8 lg:gap-12">
               {/* Step 1 */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -474,12 +572,12 @@ export default function BrilhoOriginalHomepage({
                 viewport={{ once: true }}
                 className="text-center"
               >
-                <div className="w-16 h-16 rounded-full bg-[#c8b79e]/20 flex items-center justify-center mx-auto mb-6 relative">
-                  <span className="text-2xl font-bold text-[#c8b79e]">1</span>
-                  <div className="absolute -right-4 -top-4 w-8 h-8 rounded-full bg-[#c8b79e]/10 animate-pulse" />
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-[#c8b79e]/20 flex items-center justify-center mx-auto mb-4 md:mb-6 relative">
+                  <span className="text-xl md:text-2xl font-bold text-[#c8b79e]">1</span>
+                  <div className="absolute -right-3 -top-3 md:-right-4 md:-top-4 w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#c8b79e]/10 animate-pulse" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Responda o Questionário</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Responda o Questionário</h3>
+                <p className="text-white/60 text-sm md:text-base px-2">
                   Responda 9 perguntas estratégicas sobre sua marca, seus objetivos e seu público-alvo. Leva apenas
                   5 minutos.
                 </p>
@@ -493,12 +591,12 @@ export default function BrilhoOriginalHomepage({
                 viewport={{ once: true }}
                 className="text-center"
               >
-                <div className="w-16 h-16 rounded-full bg-[#c8b79e]/20 flex items-center justify-center mx-auto mb-6 relative">
-                  <span className="text-2xl font-bold text-[#c8b79e]">2</span>
-                  <div className="absolute -right-4 -top-4 w-8 h-8 rounded-full bg-[#c8b79e]/10 animate-pulse" />
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-[#c8b79e]/20 flex items-center justify-center mx-auto mb-4 md:mb-6 relative">
+                  <span className="text-xl md:text-2xl font-bold text-[#c8b79e]">2</span>
+                  <div className="absolute -right-3 -top-3 md:-right-4 md:-top-4 w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#c8b79e]/10 animate-pulse" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Análise Inteligente</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Análise Inteligente</h3>
+                <p className="text-white/60 text-sm md:text-base px-2">
                   Nossa IA analisa suas respostas e gera um diagnóstico personalizado com insights específicos para
                   sua marca.
                 </p>
@@ -512,41 +610,39 @@ export default function BrilhoOriginalHomepage({
                 viewport={{ once: true }}
                 className="text-center"
               >
-                <div className="w-16 h-16 rounded-full bg-[#c8b79e]/20 flex items-center justify-center mx-auto mb-6 relative">
-                  <span className="text-2xl font-bold text-[#c8b79e]">3</span>
-                  <div className="absolute -right-4 -top-4 w-8 h-8 rounded-full bg-[#c8b79e]/10 animate-pulse" />
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-[#c8b79e]/20 flex items-center justify-center mx-auto mb-4 md:mb-6 relative">
+                  <span className="text-xl md:text-2xl font-bold text-[#c8b79e]">3</span>
+                  <div className="absolute -right-3 -top-3 md:-right-4 md:-top-4 w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#c8b79e]/10 animate-pulse" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">Implemente as Estratégias</h3>
-                <p className="text-white/60">
+                <h3 className="text-lg md:text-xl font-bold text-white mb-2 md:mb-3">Implemente as Estratégias</h3>
+                <p className="text-white/60 text-sm md:text-base px-2">
                   Receba um plano de ação detalhado com recomendações práticas para transformar sua marca e acelerar
                   seu crescimento.
                 </p>
               </motion.div>
             </div>
 
-            <div className="mt-12 md:mt-16 text-center">
+            <div className="mt-8 md:mt-12 lg:mt-16 text-center">
               <button
                 onClick={handleStart}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30"
+                className="inline-flex items-center gap-2 px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-[#1a1814]/40 hover:shadow-xl hover:shadow-[#1a1814]/50 hover:scale-105 border border-[#c8b79e]/30 text-sm md:text-base"
               >
                 <span>Começar Agora</span>
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>
-        </section>
-
-        {/* Preview Section */}
-        <section ref={previewSectionRef} className="py-16 md:py-24 relative">
+        </section>        {/* Preview Section */}
+        <section ref={previewSectionRef} className="py-12 md:py-16 lg:py-24 relative">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="text-center mb-12 md:mb-16">
+            <div className="text-center mb-8 md:mb-12 lg:mb-16">
               <span className="inline-block px-3 py-1 rounded-full bg-[#c8b79e]/10 text-[#c8b79e] text-sm font-medium mb-4">
                 Prévia do Diagnóstico
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 px-4">
                 Veja o que você vai receber
               </h2>
-              <p className="text-white/60 max-w-2xl mx-auto">
+              <p className="text-white/60 max-w-2xl mx-auto text-sm md:text-base px-4">
                 Seu diagnóstico personalizado inclui análise profunda, pontuação e insights acionáveis para transformar sua marca.
               </p>
             </div>
@@ -557,45 +653,45 @@ export default function BrilhoOriginalHomepage({
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
                 viewport={{ once: true }}
-                className="bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-12 shadow-xl w-full max-w-3xl mx-auto"
+                className="bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-4 md:p-8 lg:p-12 shadow-xl w-full max-w-3xl mx-auto"
               >
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
+                    <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
                       <Image
                         src="/images/brandplot-logo.png"
                         alt="BrandPlot"
-                        width={16}
-                        height={16}
-                        className="rounded-full"
+                        width={12}
+                        height={12}
+                        className="rounded-full md:w-4 md:h-4"
                       />
                     </div>
-                    <span className="text-sm text-white/60">Diagnóstico Completo</span>
+                    <span className="text-xs md:text-sm text-white/60">Diagnóstico Completo</span>
                   </div>
 
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 w-full sm:w-auto">
                     <button
                       onClick={() => setActiveTab("branding")}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "branding" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
+                      className={`flex-1 sm:flex-none px-2 md:px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "branding" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
                     >
                       Análise
                     </button>
                     <button
                       onClick={() => setActiveTab("score")}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "score" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
+                      className={`flex-1 sm:flex-none px-2 md:px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "score" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
                     >
                       Score
                     </button>
                     <button
                       onClick={() => setActiveTab("insights")}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "insights" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
+                      className={`flex-1 sm:flex-none px-2 md:px-3 py-1 text-xs rounded-md transition-colors ${activeTab === "insights" ? "bg-[#c8b79e]/20 text-[#c8b79e]" : "text-white/40 hover:text-white/60"}`}
                     >
                       Ações
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-4 min-h-[320px]">
+                <div className="space-y-4 min-h-[280px] md:min-h-[320px]">
                   {activeTab === "branding" && (
                     <div className="space-y-4">
                       <div className="text-center mb-6">
@@ -696,17 +792,15 @@ export default function BrilhoOriginalHomepage({
               </motion.div>
             </div>
           </div>
-        </section>
-
-        {/* FAQ Section */}
-        <section ref={faqSectionRef} className="py-16 md:py-24 relative bg-[#1a1814]/30">
+        </section>        {/* FAQ Section */}
+        <section ref={faqSectionRef} className="py-12 md:py-16 lg:py-24 relative bg-[#1a1814]/30">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="text-center mb-12 md:mb-16">
+            <div className="text-center mb-8 md:mb-12 lg:mb-16">
               <span className="inline-block px-3 py-1 rounded-full bg-[#c8b79e]/10 text-[#c8b79e] text-sm font-medium mb-4">
                 FAQ
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Perguntas Frequentes</h2>
-              <p className="text-white/60 max-w-2xl mx-auto">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 px-4">Perguntas Frequentes</h2>
+              <p className="text-white/60 max-w-2xl mx-auto text-sm md:text-base px-4">
                 Tire suas dúvidas sobre nosso diagnóstico de marca
               </p>
             </div>
@@ -719,18 +813,18 @@ export default function BrilhoOriginalHomepage({
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                   viewport={{ once: true }}
-                  className="mb-4"
+                  className="mb-3 md:mb-4"
                 >
                   <button
                     onClick={() => toggleFaq(index)}
-                    className="w-full text-left bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 hover:bg-white/[0.04] transition-all duration-300"
+                    className="w-full text-left bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-4 md:p-6 hover:bg-white/[0.04] transition-all duration-300"
                   >
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-semibold text-white pr-8">{faq.question}</h3>
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-base md:text-lg font-semibold text-white pr-4 md:pr-8 leading-tight">{faq.question}</h3>
                       {openFaq === index ? (
-                        <ChevronUp className="w-5 h-5 text-[#c8b79e] flex-shrink-0" />
+                        <ChevronUp className="w-5 h-5 text-[#c8b79e] flex-shrink-0 mt-0.5" />
                       ) : (
-                        <ChevronDown className="w-5 h-5 text-[#c8b79e] flex-shrink-0" />
+                        <ChevronDown className="w-5 h-5 text-[#c8b79e] flex-shrink-0 mt-0.5" />
                       )}
                     </div>
                     {openFaq === index && (
@@ -739,9 +833,9 @@ export default function BrilhoOriginalHomepage({
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="mt-4 pt-4 border-t border-white/[0.08]"
+                        className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/[0.08]"
                       >
-                        <p className="text-white/60 leading-relaxed">{faq.answer}</p>
+                        <p className="text-white/60 leading-relaxed text-sm md:text-base">{faq.answer}</p>
                       </motion.div>
                     )}
                   </button>
@@ -749,25 +843,23 @@ export default function BrilhoOriginalHomepage({
               ))}
             </div>
           </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="py-8 md:py-12 border-t border-white/[0.08]">
+        </section>        {/* Footer */}
+        <footer className="py-6 md:py-8 lg:py-12 border-t border-white/[0.08]">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
+                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#c8b79e]/20 flex items-center justify-center">
                   <Image
                     src="/images/brandplot-logo.png"
                     alt="BrandPlot"
-                    width={20}
-                    height={20}
-                    className="rounded-full"
+                    width={16}
+                    height={16}
+                    className="rounded-full md:w-5 md:h-5"
                   />
                 </div>
-                <span className="text-white font-medium">BrandPlot</span>
+                <span className="text-white font-medium text-sm md:text-base">BrandPlot</span>
               </div>
-              <p className="text-white/40 text-sm">
+              <p className="text-white/40 text-xs md:text-sm text-center">
                 © 2024 BrandPlot. Todos os direitos reservados.
               </p>
             </div>

@@ -243,44 +243,38 @@ export default function Dashboard() {
       {/* Header */}
       <div className="relative z-10">
         <SharedHeader companyName={companyName} />
-      </div>
-
-      {/* Main content */}
-      <main className="relative z-10 container mx-auto px-4 md:px-6 py-12 md:py-16">
+      </div>      {/* Main content */}
+      <main className="relative z-10 container mx-auto px-4 md:px-6 py-8 sm:py-12 md:py-16">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
             className="text-center mb-8"
-          >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-6">
+          >            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-6 max-w-full">
               <Image
                 src="/images/brilho-original-logo.png"
                 alt="BrandPlot"
                 width={20}
                 height={20}
-                className="rounded-full"
+                className="rounded-full flex-shrink-0"
               />
-              <span className="text-sm text-white/60 tracking-wide">
+              <span className="text-xs sm:text-sm text-white/60 tracking-wide truncate">
                 Dashboard de <span className="text-[#c8b79e] font-medium">{companyName}</span>
               </span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            </div>            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
               Bem-vindo de volta
             </h1>
-            <p className="text-white/60">
+            <p className="text-white/60 text-sm sm:text-base">
               Acompanhe o progresso da sua marca e acesse todas as ferramentas
             </p>
-          </motion.div>
-
-          <div className="space-y-6">
+          </motion.div>          <div className="space-y-4 sm:space-y-6">
             {/* Card: Diagnóstico da Marca */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 shadow-xl"
+              className="bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-600/20 flex items-center justify-center border border-amber-500/30">
@@ -288,44 +282,41 @@ export default function Dashboard() {
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold text-white">Diagnóstico da Marca</h2>
               </div>
-              
-              <p className="text-white/80 mb-6 leading-relaxed">
-                Veja o resultado do diagnóstico completo de <span className="font-bold text-[#c8b79e]">{companyName}</span>, 
+                <p className="text-white/80 mb-6 leading-relaxed text-sm sm:text-base">
+                Veja o resultado do diagnóstico completo de <span className="font-bold text-[#c8b79e] break-words">{companyName}</span>, 
                 com insights personalizados e score de clareza & emoção da marca.
-              </p>
-
-              <div className="flex flex-col md:flex-row items-center gap-8 mb-6">
+              </p>              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 md:gap-8 mb-6">
                 <div className="flex flex-col items-center">
-                  <div className="relative mb-4">
+                  <div className="relative mb-3 md:mb-4">
                     <ScoreCounter targetScore={score} duration={2000} />
                   </div>
-                  <p className="text-white/60 text-sm text-center">
+                  <p className="text-white/60 text-xs sm:text-sm text-center">
                     Nota de Clareza & Emoção
                   </p>
                 </div>
                 
-                <div className="flex-1 text-center md:text-left">
+                <div className="flex-1 text-center sm:text-left">
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 justify-center md:justify-start">
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                      <span className="text-white/80 text-sm">Diagnóstico Completo</span>
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      <span className="text-white/80 text-xs sm:text-sm">Diagnóstico Completo</span>
                     </div>
-                    <div className="flex items-center gap-2 justify-center md:justify-start">
-                      <Star className="w-4 h-4 text-[#c8b79e]" />
-                      <span className="text-white/80 text-sm">Insights Personalizados</span>
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <Star className="w-4 h-4 text-[#c8b79e] flex-shrink-0" />
+                      <span className="text-white/80 text-xs sm:text-sm">Insights Personalizados</span>
                     </div>
-                    <div className="flex items-center gap-2 justify-center md:justify-start">
-                      <Zap className="w-4 h-4 text-blue-400" />
-                      <span className="text-white/80 text-sm">Próximos Passos Definidos</span>
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <Zap className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                      <span className="text-white/80 text-xs sm:text-sm">Próximos Passos Definidos</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="text-center">
-                <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 px-8 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
-                  <Link href="/diagnostico" className="flex items-center gap-2">
-                    Ver diagnóstico completo
+              <div className="text-center">                <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 w-full py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+                  <Link href="/diagnostico" className="flex items-center justify-center gap-2">
+                    <span className="hidden sm:inline">Ver diagnóstico completo</span>
+                    <span className="sm:hidden">Ver diagnóstico</span>
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </Button>
@@ -337,21 +328,19 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 shadow-xl"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500/20 to-blue-600/20 flex items-center justify-center border border-blue-500/30">
+              className="bg-gradient-to-br from-white/[0.08] to-white/[0.03] backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl"
+            >              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500/20 to-blue-600/20 flex items-center justify-center border border-blue-500/30 flex-shrink-0">
                     <Zap className="w-6 h-6 text-blue-400" />
                   </div>
-                  <h2 className="text-xl md:text-2xl font-bold text-white">Estratégia de Marca</h2>
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">Estratégia de Marca</h2>
                 </div>
-                <span className="text-[#c8b79e]/60 text-xs italic bg-[#c8b79e]/10 px-2 py-1 rounded-full border border-[#c8b79e]/20">
+                <span className="text-[#c8b79e]/60 text-xs italic bg-[#c8b79e]/10 px-2 py-1 rounded-full border border-[#c8b79e]/20 self-start sm:self-center whitespace-nowrap">
                   Gerado por IA
                 </span>
               </div>
-              
-              <p className="text-white/80 mb-6 leading-relaxed">
+                <p className="text-white/80 mb-6 leading-relaxed text-sm sm:text-base">
                 Acesse a análise de perfil e direcionamento estratégico para sua marca, com insights personalizados e
                 recomendações acionáveis para crescimento.
               </p>
@@ -362,24 +351,25 @@ export default function Dashboard() {
                     className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 w-full py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center"
                     onClick={handleGerarEstrategia}
                     disabled={loadingEstrategia}
-                  >
-                    {loadingEstrategia ? (
+                  >                    {loadingEstrategia ? (
                       <>
                         <Loader2 className="animate-spin mr-2 w-4 h-4" />
-                        Gerando estratégia...
+                        <span className="hidden sm:inline">Gerando estratégia...</span>
+                        <span className="sm:hidden">Gerando...</span>
                       </>
                     ) : (
                       <>
                         <Zap className="mr-2 w-4 h-4" />
-                        Gerar estratégia de marca
+                        <span className="hidden sm:inline">Gerar estratégia de marca</span>
+                        <span className="sm:hidden">Gerar estratégia</span>
                       </>
                     )}
                   </Button>
                 ) : (
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 flex-1 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
-                      <Link href="/estrategia" className="flex items-center justify-center gap-2">
-                        Visualizar estratégia
+                    <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 flex-1 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">                      <Link href="/estrategia" className="flex items-center justify-center gap-2">
+                        <span className="hidden sm:inline">Visualizar estratégia</span>
+                        <span className="sm:hidden">Ver estratégia</span>
                         <ArrowRight className="w-4 h-4" />
                       </Link>
                     </Button>
@@ -387,16 +377,17 @@ export default function Dashboard() {
                       className="bg-gradient-to-r from-green-500/20 to-green-600/20 hover:from-green-500/30 hover:to-green-600/30 text-green-300 border border-green-500/30 flex-1 py-2.5 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={handleEnviarDesigner}
                       disabled={enviadoDesigner === true}
-                    >
-                      {enviadoDesigner === true ? (
+                    >                      {enviadoDesigner === true ? (
                         <>
                           <CheckCircle2 className="mr-2 w-4 h-4" />
-                          Enviado ao Designer
+                          <span className="hidden sm:inline">Enviado ao Designer</span>
+                          <span className="sm:hidden">Enviado</span>
                         </>
                       ) : (
                         <>
                           <Star className="mr-2 w-4 h-4" />
-                          Aprovar e Enviar
+                          <span className="hidden sm:inline">Aprovar e Enviar</span>
+                          <span className="sm:hidden">Aprovar</span>
                         </>
                       )}
                     </Button>
@@ -416,22 +407,20 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.6 }}
-              className="bg-gradient-to-br from-orange-500/[0.12] to-orange-600/[0.04] backdrop-blur-sm border border-orange-500/20 rounded-2xl p-6 md:p-8 shadow-xl"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500/20 to-orange-600/20 flex items-center justify-center border border-orange-500/30">
+              className="bg-gradient-to-br from-orange-500/[0.12] to-orange-600/[0.04] backdrop-blur-sm border border-orange-500/20 rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl"
+            >              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500/20 to-orange-600/20 flex items-center justify-center border border-orange-500/30 flex-shrink-0">
                     <MessageCircle className="w-6 h-6 text-orange-400" />
                   </div>
-                  <h2 className="text-xl md:text-2xl font-bold text-white">Assistente de IA - BrandPlot</h2>
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">Assistente de IA - BrandPlot</h2>
                 </div>
-                <span className="bg-gradient-to-r from-orange-500/15 to-orange-600/10 text-orange-300 text-xs font-medium px-3 py-1 rounded-full border border-orange-500/20">
+                <span className="bg-gradient-to-r from-orange-500/15 to-orange-600/10 text-orange-300 text-xs font-medium px-2 sm:px-3 py-1 rounded-full border border-orange-500/20 self-start sm:self-center whitespace-nowrap">
                   Beta
                 </span>
               </div>
-              
-              <p className="text-white/80 mb-6 leading-relaxed">
-                Converse com nosso modelo de IA especializado sobre <span className="font-bold text-orange-300">{companyName}</span>. 
+                <p className="text-white/80 mb-6 leading-relaxed text-sm sm:text-base">
+                Converse com nosso modelo de IA especializado sobre <span className="font-bold text-orange-300 break-words">{companyName}</span>. 
                 Faça perguntas sobre sua marca, explore insights e obtenha orientações personalizadas através de uma conversa intuitiva.
               </p>
 
@@ -441,8 +430,7 @@ export default function Dashboard() {
                     <Zap className="w-4 h-4 text-orange-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-orange-200 mb-1">O que você pode fazer:</h3>
-                    <ul className="text-sm text-orange-200/80 space-y-1">
+                    <h3 className="font-semibold text-orange-200 mb-1 text-sm sm:text-base">O que você pode fazer:</h3>                    <ul className="text-xs sm:text-sm text-orange-200/80 space-y-1">
                       <li>• Discutir estratégias de posicionamento</li>
                       <li>• Explorar oportunidades de mercado</li>
                       <li>• Obter sugestões de melhorias</li>
@@ -452,10 +440,10 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="text-center">
-                <Button asChild className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium border-0 px-8 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
-                  <Link href="/voz" className="flex items-center gap-2">
-                    Iniciar conversa
+              <div className="text-center">                <Button asChild className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium border-0 w-full py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+                  <Link href="/voz" className="flex items-center justify-center gap-2">
+                    <span className="hidden sm:inline">Iniciar conversa</span>
+                    <span className="sm:hidden">Conversar</span>
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </Button>
@@ -467,16 +455,15 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.6 }}
-              className="bg-gradient-to-br from-purple-500/[0.12] to-purple-600/[0.04] backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6 md:p-8 shadow-xl"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500/20 to-purple-600/20 flex items-center justify-center border border-purple-500/30">
+              className="bg-gradient-to-br from-purple-500/[0.12] to-purple-600/[0.04] backdrop-blur-sm border border-purple-500/20 rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl"
+            >              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500/20 to-purple-600/20 flex items-center justify-center border border-purple-500/30 flex-shrink-0">
                     <Palette className="w-6 h-6 text-purple-400" />
                   </div>
-                  <h2 className="text-xl md:text-2xl font-bold text-white">Visualização no Figma</h2>
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">Visualização no Figma</h2>
                 </div>
-                <span className="bg-gradient-to-r from-purple-500/15 to-purple-600/10 text-purple-300 text-xs font-medium px-3 py-1 rounded-full border border-purple-500/20">
+                <span className="bg-gradient-to-r from-purple-500/15 to-purple-600/10 text-purple-300 text-xs font-medium px-2 sm:px-3 py-1 rounded-full border border-purple-500/20 self-start sm:self-center whitespace-nowrap">
                   Design
                 </span>
               </div>
@@ -519,7 +506,7 @@ export default function Dashboard() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7, duration: 0.6 }}
-                className="bg-gradient-to-br from-[#c8b79e]/[0.15] to-[#c8b79e]/[0.05] backdrop-blur-sm border border-[#c8b79e]/20 rounded-2xl p-6 md:p-8 shadow-xl"
+                className="bg-gradient-to-br from-[#c8b79e]/[0.15] to-[#c8b79e]/[0.05] backdrop-blur-sm border border-[#c8b79e]/20 rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl"
               >
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#c8b79e]/30 to-[#c8b79e]/20 flex items-center justify-center border border-[#c8b79e]/40">

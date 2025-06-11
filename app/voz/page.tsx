@@ -572,16 +572,16 @@ export default function VozOtimizada() {
       </div>
 
       {/* Chat Container */}
-      <div className="relative z-10 h-[calc(100vh-80px)] flex justify-center p-6">
-        <div className="w-full max-w-[80%] flex flex-col border-2 border-orange-700/50 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
+      <div className="relative z-10 h-[calc(100vh-60px)] sm:h-[calc(100vh-70px)] md:h-[calc(100vh-80px)] flex justify-center p-2 sm:p-4 md:p-6">
+        <div className="w-full max-w-full sm:max-w-[90%] md:max-w-[80%] lg:max-w-[70%] flex flex-col border-2 border-orange-700/50 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
         
         {/* Chat Header */}
-        <div className="bg-[#2a251f] border-b border-orange-500/20 p-4">
+        <div className="bg-[#2a251f] border-b border-orange-500/20 p-3 sm:p-4">
           <div className="text-center">
-            <h1 className="text-xl font-bold text-white mb-1">
+            <h1 className="text-lg sm:text-xl font-bold text-white mb-1">
               Assistente BrandPlot
             </h1>
-            <p className="text-sm text-orange-300">
+            <p className="text-xs sm:text-sm text-orange-300">
               Especialista em branding para <span className="font-semibold">{companyName}</span>
             </p>
           </div>
@@ -590,7 +590,7 @@ export default function VozOtimizada() {
         {/* Messages Container */}
         <div 
           ref={chatContainerRef}
-          className={`flex-1 overflow-y-auto p-4 space-y-4 relative ${isDragging ? 'bg-orange-500/10 border-2 border-dashed border-orange-500' : ''}`}
+          className={`flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4 relative ${isDragging ? 'bg-orange-500/10 border-2 border-dashed border-orange-500' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -600,17 +600,17 @@ export default function VozOtimizada() {
             <div className="absolute inset-0 flex items-center justify-center bg-orange-500/20 backdrop-blur-sm z-40">
               <div className="text-center text-white">
                 <Image className="w-12 h-12 mx-auto mb-2 text-orange-400" />
-                <p className="text-lg font-semibold">Solte a imagem aqui</p>
-                <p className="text-sm opacity-80">PNG, JPG, GIF aceitos</p>
+                <p className="text-base sm:text-lg font-semibold">Solte a imagem aqui</p>
+                <p className="text-xs sm:text-sm opacity-80">PNG, JPG, GIF aceitos</p>
               </div>
             </div>
           )}
           {messages.length === 0 && (
-            <div className="text-center text-white/60 mt-8">
-              <div className="max-w-md mx-auto">
-                <Volume2 className="w-12 h-12 mx-auto mb-4 text-orange-400" />
-                <p className="text-lg font-medium mb-2">Bem-vindo ao Assistente</p>
-                <p className="text-sm">
+            <div className="text-center text-white/60 mt-4 sm:mt-8">
+              <div className="max-w-xs sm:max-w-md mx-auto px-4">
+                <Volume2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-orange-400" />
+                <p className="text-base sm:text-lg font-medium mb-2">Bem-vindo ao Assistente</p>
+                <p className="text-xs sm:text-sm leading-relaxed">
                   Envie uma mensagem de texto ou grave um áudio para começar a conversar sobre branding e estratégia de marca.
                 </p>
               </div>
@@ -622,27 +622,27 @@ export default function VozOtimizada() {
               key={message.id}
               className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-                             <div className={`max-w-[70%] ${
+                             <div className={`max-w-[85%] sm:max-w-[70%] ${
                  message.type === 'user' 
                    ? 'bg-orange-500 text-white shadow-lg' 
                    : 'bg-[#2a251f] text-white border border-orange-500/20 shadow-lg'
-               } rounded-2xl p-3 animate-in slide-in-from-bottom-2 duration-300`}>
+               } rounded-2xl p-2.5 sm:p-3 animate-in slide-in-from-bottom-2 duration-300`}>
                 
                                  {/* Imagem da mensagem */}
                  {message.imageUrl && (
-                   <div className="mb-3">
+                   <div className="mb-2 sm:mb-3">
                      <img 
                        src={message.imageUrl} 
                        alt="Imagem enviada" 
-                       className="max-w-xs max-h-64 rounded-lg border border-white/20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                       className="max-w-full sm:max-w-xs max-h-48 sm:max-h-64 rounded-lg border border-white/20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                        onClick={() => window.open(message.imageUrl, '_blank')}
                      />
                    </div>
                  )}
                  
                  {/* Conteúdo da mensagem */}
-                 <div className="mb-2">
-                   <div className={`text-sm leading-relaxed prose prose-invert prose-sm max-w-none ${
+                 <div className="mb-1.5 sm:mb-2">
+                   <div className={`text-xs sm:text-sm leading-relaxed prose prose-invert prose-sm max-w-none ${
                      message.type === 'user' ? 'prose-orange' : 'prose-neutral'
                    }`}>
                      <ReactMarkdown
@@ -802,35 +802,35 @@ export default function VozOtimizada() {
          )}
 
                  {/* Input Container */}
-         <div className="bg-[#2a251f] border-t border-orange-500/20 p-4">
+         <div className="bg-[#2a251f] border-t border-orange-500/20 p-2 sm:p-4">
            {/* Preview da imagem selecionada */}
            {imagePreview && (
-             <div className="mb-3 flex items-start space-x-3 p-3 bg-[#1a1814] rounded-xl border border-orange-500/20">
+             <div className="mb-2 sm:mb-3 flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 bg-[#1a1814] rounded-xl border border-orange-500/20">
                <img 
                  src={imagePreview} 
                  alt="Preview" 
-                 className="w-16 h-16 rounded-lg object-cover border border-white/20"
+                 className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover border border-white/20 flex-shrink-0"
                />
-               <div className="flex-1">
-                 <p className="text-white text-sm font-medium">Imagem selecionada</p>
-                 <p className="text-gray-400 text-xs">{selectedImage?.name}</p>
+               <div className="flex-1 min-w-0">
+                 <p className="text-white text-xs sm:text-sm font-medium truncate">Imagem selecionada</p>
+                 <p className="text-gray-400 text-xs truncate">{selectedImage?.name}</p>
                </div>
                <button
                  onClick={removeSelectedImage}
-                 className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
+                 className="p-1 hover:bg-red-500/20 rounded-lg transition-colors flex-shrink-0"
                >
-                 <X className="w-4 h-4 text-red-400" />
+                 <X className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
                </button>
              </div>
            )}
            
-           <div className="flex items-end space-x-2 sm:space-x-3">
+           <div className="flex items-end space-x-1.5 sm:space-x-2 md:space-x-3">
              
              {/* Ferramentas Dropdown */}
              <div className="relative" data-dropdown="tools">
                <button
                  onClick={() => setToolsDropdownOpen(!toolsDropdownOpen)}
-                 className={`p-3 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                 className={`p-2 sm:p-3 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${
                    webSearchEnabled 
                      ? 'bg-orange-500/20 border border-orange-500/50 text-orange-400 hover:bg-orange-500/30' 
                      : 'bg-[#1a1814] border border-orange-500/30 text-white hover:border-orange-500 hover:bg-[#2a251f]'
@@ -838,16 +838,16 @@ export default function VozOtimizada() {
                  title="Ferramentas disponíveis"
                >
                  <div className="relative">
-                   <Settings className="w-5 h-5" />
+                   <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
                    {webSearchEnabled && (
-                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                     <div className="absolute -top-0.5 -right-0.5 w-2 h-2 sm:w-3 sm:h-3 bg-orange-500 rounded-full animate-pulse"></div>
                    )}
                  </div>
                </button>
 
                {/* Dropdown Menu */}
                {toolsDropdownOpen && (
-                 <div className="absolute left-0 bottom-full mb-2 w-80 bg-[#1a1814] border border-orange-500/20 rounded-2xl shadow-2xl backdrop-blur-sm z-50 overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
+                 <div className="absolute left-0 bottom-full mb-2 w-72 sm:w-80 bg-[#1a1814] border border-orange-500/20 rounded-2xl shadow-2xl backdrop-blur-sm z-50 overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
                    <div className="p-4">
                      <h3 className="text-white font-semibold mb-3 text-sm">Ferramentas Disponíveis</h3>
                      
@@ -936,10 +936,10 @@ export default function VozOtimizada() {
              <button
                onClick={() => fileInputRef.current?.click()}
                disabled={isProcessing}
-               className="p-3 bg-[#1a1814] border border-orange-500/30 rounded-xl text-white hover:border-orange-500 hover:bg-[#2a251f] transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+               className="p-2 sm:p-3 bg-[#1a1814] border border-orange-500/30 rounded-xl text-white hover:border-orange-500 hover:bg-[#2a251f] transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                title="Anexar imagem"
              >
-               <Paperclip className="w-5 h-5" />
+               <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
              </button>
 
              {/* Hidden File Input */}
@@ -960,9 +960,9 @@ export default function VozOtimizada() {
                    onChange={(e) => setInputText(e.target.value)}
                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendTextMessage()}
                    onPaste={handlePaste}
-                   placeholder={selectedImage ? "Descreva o que quer saber sobre a imagem..." : "Digite uma mensagem ou cole/arraste uma imagem..."}
+                   placeholder={selectedImage ? "Descreva o que quer saber sobre a imagem..." : "Digite uma mensagem ou arraste uma imagem..."}
                    disabled={isProcessing}
-                   className="w-full bg-[#1a1814] border border-orange-500/30 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 transition-all"
+                   className="w-full bg-[#1a1814] border border-orange-500/30 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base text-white placeholder-white/40 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 transition-all placeholder:text-xs sm:placeholder:text-sm"
                  />
                </div>
              </div>
@@ -971,33 +971,34 @@ export default function VozOtimizada() {
              <button
                onClick={toggleRecording}
                disabled={isProcessing}
-               className={`p-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 ${
+               className={`p-2 sm:p-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 ${
                  isRecording 
                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                    : 'bg-orange-500 hover:bg-orange-600'
                } text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                title={isRecording ? "Clique para parar a gravação" : "Clique para gravar áudio"}
              >
-               {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+               {isRecording ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
              </button>
  
              {/* Send Button */}
              <button
                onClick={sendTextMessage}
                disabled={(!inputText.trim() && !selectedImage) || isProcessing}
-               className="p-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all transform hover:scale-105 active:scale-95 disabled:transform-none"
+               className="p-2 sm:p-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all transform hover:scale-105 active:scale-95 disabled:transform-none"
                title="Enviar mensagem"
              >
-               {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+               {isProcessing ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
              </button>
            </div>
 
                      {/* Recording indicator */}
            {isRecording && (
-             <div className="mt-3 text-center">
-               <div className="inline-flex items-center space-x-2 text-red-400 text-sm">
+             <div className="mt-2 sm:mt-3 text-center">
+               <div className="inline-flex items-center space-x-2 text-red-400 text-xs sm:text-sm">
                  <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                 <span>Gravando... (clique no microfone para parar)</span>
+                 <span className="hidden sm:inline">Gravando... (clique no microfone para parar)</span>
+                 <span className="sm:hidden">Gravando...</span>
                </div>
              </div>
            )}
