@@ -311,9 +311,8 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="text-center">                <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 w-full py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+              </div>              <div className="text-center">
+                <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 w-full py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
                   <Link href="/diagnostico" className="flex items-center justify-center gap-2">
                     <span className="hidden sm:inline">Ver diagnóstico completo</span>
                     <span className="sm:hidden">Ver diagnóstico</span>
@@ -366,8 +365,8 @@ export default function Dashboard() {
                     )}
                   </Button>
                 ) : (
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 flex-1 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">                      <Link href="/estrategia" className="flex items-center justify-center gap-2">
+                  <div className="flex flex-col sm:flex-row gap-3">                    <Button asChild className="bg-gradient-to-r from-[#c8b79e] to-[#b09e85] hover:from-[#d0c0a8] hover:to-[#c8b79e] text-[#1a1814] font-medium border-0 flex-1 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+                      <Link href="/estrategia" className="flex items-center justify-center gap-2">
                         <span className="hidden sm:inline">Visualizar estratégia</span>
                         <span className="sm:hidden">Ver estratégia</span>
                         <ArrowRight className="w-4 h-4" />
@@ -438,10 +437,9 @@ export default function Dashboard() {
                     </ul>
                   </div>
                 </div>
-              </div>
-
-              <div className="text-center">                <Button asChild className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium border-0 w-full py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
-                  <Link href="/voz" className="flex items-center justify-center gap-2">
+              </div>              <div className="text-center">
+                <Button asChild className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium border-0 w-full py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
+                  <Link href="/chat" className="flex items-center justify-center gap-2">
                     <span className="hidden sm:inline">Iniciar conversa</span>
                     <span className="sm:hidden">Conversar</span>
                     <ArrowRight className="w-4 h-4" />

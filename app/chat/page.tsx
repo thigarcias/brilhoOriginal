@@ -15,6 +15,7 @@ interface Message {
   timestamp: Date
   isPlaying?: boolean
   webSearchUsed?: boolean
+  semanticSearchUsed?: boolean
   imageUrl?: string
   imageFile?: File
 }
@@ -36,6 +37,7 @@ export default function VozOtimizada() {
   
   // Estado para busca na web
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
+  const [contextEnhancedEnabled, setContextEnhancedEnabled] = useState(true) // Ativo por padrão
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false)
   
   // Estados para upload de imagem
@@ -59,7 +61,6 @@ export default function VozOtimizada() {
   
   // Dados da empresa
   const [companyName, setCompanyName] = useState<string>("Sua Marca")
-  const [companyData, setCompanyData] = useState<any>(null)
 
   // Estágios de processamento
   const processingStages: ProcessingStage[] = [
@@ -99,11 +100,6 @@ export default function VozOtimizada() {
             const result = await response.json()
             if (result.success && result.data) {
               setCompanyName(result.data.nome_empresa || "Sua Marca")
-              delete result.data.resposta_8
-              delete result.data.senha
-              delete result.data.telefone
-              delete result.data.updated_at
-              setCompanyData(result.data)
             }
           }
         } catch (error) {
@@ -115,7 +111,7 @@ export default function VozOtimizada() {
   }, [])
 
   // Adicionar mensagem
-  const addMessage = (content: string, type: 'user' | 'assistant', mode: 'text' | 'voice', audioUrl?: string, webSearchUsed?: boolean, imageUrl?: string, imageFile?: File) => {
+  const addMessage = (content: string, type: 'user' | 'assistant', mode: 'text' | 'voice', audioUrl?: string, webSearchUsed?: boolean, semanticSearchUsed?: boolean, imageUrl?: string, imageFile?: File) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       type,
@@ -125,6 +121,7 @@ export default function VozOtimizada() {
       timestamp: new Date(),
       isPlaying: false,
       webSearchUsed,
+      semanticSearchUsed,
       imageUrl,
       imageFile
     }
@@ -146,7 +143,7 @@ export default function VozOtimizada() {
     removeSelectedImage()
     
     // Adicionar mensagem do usuário
-    addMessage(messageContent, 'user', 'text', undefined, undefined, currentImagePreview || undefined, currentImage || undefined)
+    addMessage(messageContent, 'user', 'text', undefined, undefined, undefined, currentImagePreview || undefined, currentImage || undefined)
     
     try {
       setIsProcessing(true)
@@ -165,7 +162,7 @@ export default function VozOtimizada() {
       }
       
       // Adicionar resposta da IA
-      addMessage(llmResponse.text, 'assistant', 'text', undefined, llmResponse.webSearchUsed)
+      addMessage(llmResponse.text, 'assistant', 'text', undefined, llmResponse.webSearchUsed, llmResponse.semanticSearchUsed)
       
     } catch (err: any) {
       setError("Erro no processamento: " + (err?.message || err))
@@ -303,7 +300,7 @@ export default function VozOtimizada() {
       }
       
       // Adicionar resposta da IA com áudio
-      const messageId = addMessage(assistantText, 'assistant', 'voice', ttsResponse.audioUrl, llmResponse.webSearchUsed)
+      const messageId = addMessage(assistantText, 'assistant', 'voice', ttsResponse.audioUrl, llmResponse.webSearchUsed, llmResponse.semanticSearchUsed)
       
       // Auto-reproduzir resposta da IA
       if (ttsResponse.audioUrl) {
@@ -339,10 +336,10 @@ export default function VozOtimizada() {
       const formData = new FormData()
       formData.append('message', userText)
       formData.append('image', imageFile)
-      formData.append('companyData', JSON.stringify(companyData))
       formData.append('companyName', companyName)
       formData.append('mode', mode)
       formData.append('webSearchEnabled', webSearchEnabled.toString())
+      formData.append('contextEnhancedEnabled', contextEnhancedEnabled.toString())
 
       const response = await fetch('/api/voice/chat-with-image', {
         method: 'POST',
@@ -359,10 +356,10 @@ export default function VozOtimizada() {
         },
         body: JSON.stringify({ 
           message: userText,
-          companyData: companyData,
           companyName: companyName,
           mode: mode,
-          webSearchEnabled: webSearchEnabled
+          webSearchEnabled: webSearchEnabled,
+          contextEnhancedEnabled: contextEnhancedEnabled
         })
       })
       
@@ -701,11 +698,17 @@ export default function VozOtimizada() {
                         minute: '2-digit' 
                       })}
                     </span>
-                    {/* Indicador de busca na web */}
+                    {/* Indicadores de ferramentas usadas */}
                     {message.webSearchUsed && (
                       <span className="flex items-center space-x-1 text-blue-400" title="Informações atualizadas da web">
                         <Globe className="w-3 h-3" />
                         <span className="text-xs">Web</span>
+                      </span>
+                    )}
+                    {message.semanticSearchUsed && (
+                      <span className="flex items-center space-x-1 text-purple-400" title="Dados da empresa via busca semântica">
+                        <Search className="w-3 h-3" />
+                        <span className="text-xs">Empresa</span>
                       </span>
                     )}
                   </div>
@@ -831,7 +834,7 @@ export default function VozOtimizada() {
                <button
                  onClick={() => setToolsDropdownOpen(!toolsDropdownOpen)}
                  className={`p-2 sm:p-3 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                   webSearchEnabled 
+                   (webSearchEnabled || contextEnhancedEnabled)
                      ? 'bg-orange-500/20 border border-orange-500/50 text-orange-400 hover:bg-orange-500/30' 
                      : 'bg-[#1a1814] border border-orange-500/30 text-white hover:border-orange-500 hover:bg-[#2a251f]'
                  }`}
@@ -839,7 +842,7 @@ export default function VozOtimizada() {
                >
                  <div className="relative">
                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-                   {webSearchEnabled && (
+                   {(webSearchEnabled || contextEnhancedEnabled) && (
                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 sm:w-3 sm:h-3 bg-orange-500 rounded-full animate-pulse"></div>
                    )}
                  </div>
@@ -880,6 +883,39 @@ export default function VozOtimizada() {
                          </div>
                          <p className="text-gray-400 text-xs mt-1 leading-relaxed">
                            Acesso a informações atualizadas da internet para respostas mais precisas
+                         </p>
+                       </div>
+                     </div>
+
+                     {/* Contexto Aprimorado */}
+                     <div 
+                       onClick={() => {
+                         setContextEnhancedEnabled(!contextEnhancedEnabled)
+                         setToolsDropdownOpen(false)
+                       }}
+                       className={`flex items-start space-x-3 p-3 rounded-xl cursor-pointer transition-all duration-200 mb-2 transform hover:scale-[1.02] active:scale-[0.98] ${
+                         contextEnhancedEnabled 
+                           ? 'bg-orange-500/10 border border-orange-500/30 shadow-lg hover:bg-orange-500/15' 
+                           : 'hover:bg-white/5 border border-transparent hover:border-white/10'
+                       }`}
+                     >
+                       <div className={`flex-shrink-0 p-2 rounded-lg ${
+                         contextEnhancedEnabled ? 'bg-orange-500' : 'bg-amber-500'
+                       }`}>
+                         <Sparkles className="w-4 h-4 text-white" />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-center justify-between">
+                           <h4 className="text-white font-medium text-sm">Contexto Aprimorado</h4>
+                           {contextEnhancedEnabled && (
+                             <div className="flex items-center space-x-1">
+                               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                               <span className="text-xs text-green-400 font-medium">ATIVO</span>
+                             </div>
+                           )}
+                         </div>
+                         <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                           Acesso aos dados específicos da sua empresa (diagnóstico, contexto, estratégias)
                          </p>
                        </div>
                      </div>

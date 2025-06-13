@@ -3,6 +3,7 @@ import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
 import { GoogleGenAI } from '@google/genai'
 import { getRealIP, checkRateLimit } from "@/lib/rate-limiter"
+import { processEmbeddingInBackground } from "../embedding/route"
 
 // Função assíncrona para buscar contexto da empresa usando Responses API
 async function fetchCompanyContext(companyName: string, idUnico: string, supabase: any) {
@@ -211,6 +212,13 @@ async function fetchCompanyContextGemini(companyName: string, idUnico: string, s
         console.error('[GEMINI] Erro ao atualizar contexto no Supabase:', updateError);
       } else {
         console.log('[GEMINI] Contexto salvo com sucesso no Supabase');
+        
+        // *** CHAMADA ASSÍNCRONA PARA EMBEDDING APÓS CONTEXTO SALVO ***
+        console.log('[GEMINI] Iniciando processo de embedding...');
+        processEmbeddingInBackground(idUnico, contexto)
+          .catch((error: any) => {
+            console.error('[GEMINI] Erro ao processar embedding:', error);
+          });
       }
     } else {
       console.error('[GEMINI] Contexto vazio ou inválido');
@@ -316,7 +324,10 @@ RESPOSTAS:
         
         // Executar o Assistant de Onboarding
         const run = await openai.beta.threads.runs.create(thread.id, {
-          assistant_id: "asst_m1fio8b1sD3HyVL4KTBwbtzr"
+          assistant_id: "asst_m1fio8b1sD3HyVL4KTBwbtzr",
+          tools: [
+            { type: "file_search" }
+          ]
         })
         
         // Aguardar conclusão
@@ -460,14 +471,17 @@ RESPOSTAS:
           }
         }
 
-        // *** EXECUTAR BUSCA DE CONTEXTO GEMINI EM PARALELO PARA ONBOARDING ***
+        // *** EXECUTAR BUSCA DE CONTEXTO GEMINI DE FORMA ASSÍNCRONA APÓS DIAGNÓSTICO ***
         if (companyName && process.env.GEMINI_API_KEY) {
-          console.log("Iniciando busca de contexto Gemini para onboarding...")
+          console.log("Iniciando busca de contexto Gemini de forma assíncrona...")
           // Buscar contexto com Gemini de forma assíncrona (não bloqueia a resposta)
-          fetchCompanyContextGemini(companyName, generatedIdUnico, supabase)
-            .catch(error => {
-              console.error("Erro na busca de contexto Gemini no onboarding:", error)
-            })
+          // Isso executa internamente, mesmo que o usuário saia da página
+          setImmediate(() => {
+            fetchCompanyContextGemini(companyName, generatedIdUnico, supabase, bioBtImageUrl)
+              .catch((error: any) => {
+                console.error("Erro na busca de contexto Gemini no onboarding:", error)
+              })
+          })
         } else {
           console.log("Busca de contexto Gemini pulada - Gemini API Key:", !!process.env.GEMINI_API_KEY, "Company Name:", companyName)
         }
@@ -527,9 +541,12 @@ RESPOSTAS:
       content: prompt
     })
     
-    // Executar o Assistant de Estratégia
+    // Executar el Assistant de Estratégia
     const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: "asst_BuhlDfpMgLtxqxNnMcC3alD7"
+      assistant_id: "asst_BuhlDfpMgLtxqxNnMcC3alD7",
+      tools: [
+        { type: "file_search" }
+      ]
     })
 
     // Aguardar conclusão do GPT Assistant
